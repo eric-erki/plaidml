@@ -32,23 +32,23 @@ namespace context {
 //
 //   * Long-running operations can periodically invoke CheckIsOpen to throw an exception if the gate's been closed.
 //
-//   * Operations can prevent the Gate from reaching the Finalized state by allocating a Rundown object and passing it
-//     to the gate's StartOp() method.  Additionally, Rundown instances can be given a callback to be invoked
-//     when the Gate transitions from Open to Closed, allowing operations to actively initiate their own
-//     cancellation (cancelling RPCs, closing downstream gates, &c).
+//   * Operations can prevent the Gate from reaching the Finalized state by allocating a Rundown object and calling
+//   TryEnterGate() (which will throw if the gate is closed).  Additionally, Rundown instances can be given a callback
+//   to be invoked when the Gate transitions from Open to Closed, allowing operations to actively initiate their own
+//   cancellation (cancelling RPCs, closing downstream gates, &c).
 class Gate;
 
 class Rundown final {
  public:
   // Constructs a Rundown without an associated callback.
-  Rundown() {}
+  Rundown() noexcept {}
 
   // Destroys the Rundown:
   //   If the Rundown's been added to a Gate:
   //     Remove the Rundown's callback (if any) from the Gate (potentially blocking while the callback is evaluated)
   //     Release the gate (allowing it to reach the Finalized state)
   //   Destroy the callback.
-  ~Rundown();
+  ~Rundown() noexcept;
 
   // Constructs a Rundown with an associated callback, to be invoked if/when the gate is closed.
   // T must implement the Callable and MoveAssignable concepts, and it must not throw when invoked.
@@ -56,6 +56,9 @@ class Rundown final {
   explicit Rundown(CB callback) : Rundown{} {
     callback_ = compat::make_unique<TypedCallback<CB>>(std::move(callback));
   }
+
+  Rundown(Rundown&& other) noexcept = default;             // MoveConstructible
+  Rundown& operator=(Rundown&& other) noexcept = default;  // MoveAssignable
 
   // Attempt to add the Rundown to the indicated Gate, throwing error::Cancelled if the gate's been closed
   // and error::Internal if the Rundown's already associated with a Gate.
@@ -86,23 +89,22 @@ class Rundown final {
     }
   }
 
-  // The callback to invoke when the Gate is closed.
-  // When there is an associated Gate, this is protected by the Gate's mutex; it's otherwise
-  // not touched between construction and destruction of the Rundown.
+  // The callback to invoke when the Gate is closed.  When there is an
+  // associated Gate, this is moved into the gate's rundown list.
   std::unique_ptr<Callback> callback_;
 
   // The Rundown's associated Gate.  Rundowns have at most one gate in their lifetime; once set, the gate is only
   // released when the Rundown is destroyed.
   std::shared_ptr<Gate> gate_;
 
-  // The Rundown's location in the Gate's rundown list; valid iff gate_ is valid.
-  std::list<Rundown*>::iterator handle_;
+  // The Rundown's callback in the Gate's rundown list; valid iff gate_ is valid.
+  std::list<std::unique_ptr<Callback>>::iterator handle_;
 };
 
 class Gate final {
  public:
   // Polls to check whether the gate is currently open.
-  bool is_open();
+  bool is_open() noexcept;
 
   // Polls to see whether the gate has been closed, throwing error::Cancelled if it's been closed.
   void CheckIsOpen();
@@ -112,24 +114,26 @@ class Gate final {
   // gate.
   //
   // It is legal to call this multiple times for a single gate; calling it on a closed gate is a no-op.
-  boost::shared_future<void> Close();
+  boost::shared_future<void> Close() noexcept;
 
  private:
   friend class Rundown;
 
-  // Attempt to add a rundown to the gate.  If the gate has been closed, a Cancelled exception will be thrown.
-  // Otherwise, the iterator is the Gate's reference to the Rundown.
-  std::list<Rundown*>::iterator TryAddRundown(Rundown* rundown);
+  // Attempt to add a rundown to the gate.  The callback may be empty; if it is not, the callback will be invoked if the
+  // gate is closed before the rundown is destroyed (technically, before RemoveRundown returns).  If the gate has been
+  // closed, a Cancelled exception will be thrown; otherwise, the iterator is the Gate's reference to the rundown's
+  // callback.
+  std::list<std::unique_ptr<Rundown::Callback>>::iterator TryAddRundown(std::unique_ptr<Rundown::Callback> callback);
 
   // Remove the rundown from the gate.
-  // Note that this races with closing the gate; if the gate is closing, this will block while the Rundown's callback is
-  // invoked.
-  void RemoveRundown(std::list<Rundown*>::iterator handle);
+  // Note that this races with closing the gate; if the gate is closing, this will block while the associated callback
+  // is invoked.
+  void RemoveRundown(std::list<std::unique_ptr<Rundown::Callback>>::iterator handle) noexcept;
 
   std::mutex mu_;
   std::condition_variable cv_;
   bool is_open_ = true;
-  std::list<Rundown*> rundowns_;
+  std::list<std::unique_ptr<Rundown::Callback>> rundowns_;
   std::size_t rundowns_remaining_ = 0;
   bool close_complete_ = false;
   boost::promise<void> finalized_prom_;

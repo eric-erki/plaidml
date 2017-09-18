@@ -217,6 +217,15 @@ std::tuple<std::set<std::string>, std::set<std::string>> Contraction::getIndexAn
   return std::tie(indexVars, outputVars);
 }
 
+const std::map<std::string, std::string>& BinaryOpMap() {
+  static std::map<std::string, std::string> bin_ops = {
+      {"add", "+"},     {"sub", "-"},    {"mul", "*"},     {"div", "/"},       {"cmp_eq", "=="},
+      {"cmp_ne", "!="}, {"cmp_lt", "<"}, {"cmp_gt", ">"},  {"cmp_le", "<="},   {"cmp_ge", ">="},
+      {"bit_and", "&"}, {"bit_or", "|"}, {"bit_xor", "^"}, {"bit_left", "<<"}, {"bit_right", ">>"},
+  };
+  return bin_ops;
+}
+
 }  // namespace lang
 }  // namespace tile
 }  // namespace vertexai

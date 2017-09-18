@@ -40,8 +40,8 @@ class Program final : public tile::Program {
           const std::shared_ptr<MemStrategy>& output_mem_strategy, const std::shared_ptr<MemStrategy>& tmp_mem_strategy,
           hal::Memory* tmp_memory);
 
-  void Run(const context::Context& ctx, std::map<std::string, std::shared_ptr<tile::Buffer>> inputs,
-           std::map<std::string, std::shared_ptr<tile::Buffer>> outputs) final;
+  boost::future<void> Run(const context::Context& ctx, std::map<std::string, std::shared_ptr<tile::Buffer>> inputs,
+                          std::map<std::string, std::shared_ptr<tile::Buffer>> outputs) final;
 
   const std::shared_ptr<DevInfo>& devinfo() const { return devinfo_; }
   const std::shared_ptr<MemStrategy>& output_mem_strategy() const { return output_mem_strategy_; }

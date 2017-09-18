@@ -66,7 +66,7 @@ TEST(PlaidML_C_API, BroadcastFailure) {
   plaidml_set_invoker_input(invoker.get(), "A", a.get());
   plaidml_set_invoker_input(invoker.get(), "B", b.get());
   plaidml_set_invoker_output(invoker.get(), "C", c.get());
-  plaidml_schedule_invocation(ctx.get(), invoker.get());
+  std::unique_ptr<plaidml_invocation> invocation{plaidml_schedule_invocation(ctx.get(), invoker.get())};
 
   EXPECT_THAT(vai_last_status(), Ne(VAI_STATUS_OK));
 }
@@ -145,7 +145,7 @@ TEST(PlaidML_C_API, BroadcastOne) {
   plaidml_set_invoker_input(invoker.get(), "A", a.get());
   plaidml_set_invoker_input(invoker.get(), "B", b.get());
   plaidml_set_invoker_output(invoker.get(), "C", c.get());
-  plaidml_schedule_invocation(ctx.get(), invoker.get());
+  std::unique_ptr<plaidml_invocation> invocation{plaidml_schedule_invocation(ctx.get(), invoker.get())};
 
   EXPECT_THAT(vai_last_status(), Eq(VAI_STATUS_OK));
 
@@ -242,7 +242,7 @@ TEST(PlaidML_C_API, BroadcastBoth) {
   plaidml_set_invoker_input(invoker.get(), "A", a.get());
   plaidml_set_invoker_input(invoker.get(), "B", b.get());
   plaidml_set_invoker_output(invoker.get(), "C", c.get());
-  plaidml_schedule_invocation(ctx.get(), invoker.get());
+  std::unique_ptr<plaidml_invocation> invocation{plaidml_schedule_invocation(ctx.get(), invoker.get())};
 
   EXPECT_THAT(vai_last_status(), Eq(VAI_STATUS_OK));
 
@@ -324,7 +324,7 @@ TEST(PlaidML_C_API, MatMul) {
   plaidml_set_invoker_input(invoker.get(), "B", b.get());
   plaidml_set_invoker_input(invoker.get(), "C", c.get());
   plaidml_set_invoker_output(invoker.get(), "A", a.get());
-  plaidml_schedule_invocation(ctx.get(), invoker.get());
+  std::unique_ptr<plaidml_invocation> invocation{plaidml_schedule_invocation(ctx.get(), invoker.get())};
 
   EXPECT_THAT(vai_last_status(), Eq(VAI_STATUS_OK));
 

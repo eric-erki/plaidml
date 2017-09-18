@@ -1375,6 +1375,8 @@ extern "C" plaidml_invocation* plaidml_schedule_invocation(vai_ctx* ctx, plaidml
   context::Activity activity{ctx->activity.ctx(), "plaidml::invoker::ScheduleInvocation"};
   try {
     auto invocation = vertexai::compat::make_unique<plaidml_invocation>();
+    context::Rundown rundown;
+    rundown.TryEnterGate(activity.ctx().gate());
     if (!invoker->runinfo) {
       invoker->runinfo = invoker->runinfo_cache.Lookup(
           std::make_pair(ToApplierParameterShapes(invoker->inputs), ToApplierParameterShapes(invoker->outputs)),
@@ -1444,7 +1446,8 @@ extern "C" plaidml_invocation* plaidml_schedule_invocation(vai_ctx* ctx, plaidml
     auto program = evaluator->MakeProgram(activity.ctx(), prog);
 
     // Run the program
-    program->Run(activity.ctx(), in_buffers, out_buffers);
+    auto result = program->Run(activity.ctx(), in_buffers, out_buffers);
+    result.then(boost::launch::async, [rundown = std::move(rundown)](decltype(result) result){});
 
     return invocation.release();
   } catch (...) {

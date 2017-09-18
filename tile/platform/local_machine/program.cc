@@ -550,9 +550,9 @@ namespace {
 // Represents the state of a Program::Run request.
 class RunRequest {
  public:
-  static void BuildAndIssue(const context::Context& ctx, Program* program,
-                            std::map<std::string, std::shared_ptr<tile::Buffer>> inputs,
-                            std::map<std::string, std::shared_ptr<tile::Buffer>> outputs);
+  static boost::future<void> BuildAndIssue(const context::Context& ctx, Program* program,
+                                           std::map<std::string, std::shared_ptr<tile::Buffer>> inputs,
+                                           std::map<std::string, std::shared_ptr<tile::Buffer>> outputs);
 
  private:
   struct PendingUpdate {
@@ -587,9 +587,9 @@ class RunRequest {
   std::vector<boost::future<void>> output_ready_futures_;
 };
 
-void RunRequest::BuildAndIssue(const context::Context& ctx, Program* program,
-                               std::map<std::string, std::shared_ptr<tile::Buffer>> inputs,
-                               std::map<std::string, std::shared_ptr<tile::Buffer>> outputs) {
+boost::future<void> RunRequest::BuildAndIssue(const context::Context& ctx, Program* program,
+                                              std::map<std::string, std::shared_ptr<tile::Buffer>> inputs,
+                                              std::map<std::string, std::shared_ptr<tile::Buffer>> outputs) {
   RunRequest req{program, std::move(inputs), std::move(outputs)};
   req.Log();
 
@@ -611,7 +611,7 @@ void RunRequest::BuildAndIssue(const context::Context& ctx, Program* program,
   }
 
   // Keep the request and activity referenced until the program is complete.
-  complete.then([ req = std::move(req), running = std::move(running) ](decltype(complete)){});
+  return complete.then([ req = std::move(req), running = std::move(running) ](decltype(complete)){});
 }
 
 RunRequest::RunRequest(Program* program, std::map<std::string, std::shared_ptr<tile::Buffer>> inputs,
@@ -891,9 +891,10 @@ boost::future<void> RunRequest::LogResults(const context::Context& ctx) {
 
 }  // namespace
 
-void Program::Run(const context::Context& ctx, std::map<std::string, std::shared_ptr<tile::Buffer>> inputs,
-                  std::map<std::string, std::shared_ptr<tile::Buffer>> outputs) {
-  RunRequest::BuildAndIssue(ctx, this, std::move(inputs), std::move(outputs));
+boost::future<void> Program::Run(const context::Context& ctx,
+                                 std::map<std::string, std::shared_ptr<tile::Buffer>> inputs,
+                                 std::map<std::string, std::shared_ptr<tile::Buffer>> outputs) {
+  return RunRequest::BuildAndIssue(ctx, this, std::move(inputs), std::move(outputs));
 }
 
 }  // namespace local_machine
