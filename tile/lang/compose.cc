@@ -22,7 +22,7 @@ std::shared_ptr<IConstValue> IConstValue::make(const int64_t& val) {
   return result;
 }
 
-std::shared_ptr<Value> FunctionValue::make(const std::string& fn, const std::vector<std::shared_ptr<Value>>& inputs) {
+std::shared_ptr<Value> FunctionValue::make(std::string fn, std::vector<std::shared_ptr<Value>> inputs) {
   static std::shared_ptr<Value> zeroi = IConstValue::make(0);
   static std::shared_ptr<Value> onei = IConstValue::make(1);
   static std::shared_ptr<Value> zerof = FConstValue::make(0);
@@ -31,11 +31,101 @@ std::shared_ptr<Value> FunctionValue::make(const std::string& fn, const std::vec
   if (fn == "ident") {
     return inputs[0];
   }
+  if (fn == "sub") {
+    if (inputs[1]->type() == ICONST) {
+      if (inputs[0]->type() == ICONST) {
+        return IConstValue::make(dynamic_cast<const IConstValue*>(inputs[0].get())->value() -
+                                 dynamic_cast<const IConstValue*>(inputs[1].get())->value());
+      }
+      if (inputs[0]->type() == FCONST) {
+        return FConstValue::make(dynamic_cast<const FConstValue*>(inputs[0].get())->value() -
+                                 dynamic_cast<const IConstValue*>(inputs[1].get())->value());
+      }
+      // Rewrite into an add with the constant on the lhs, slightly simplifying subsequent merge logic.
+      fn = "add";
+      inputs[1] = IConstValue::make(0 - dynamic_cast<const IConstValue*>(inputs[1].get())->value());
+      std::swap(inputs[0], inputs[1]);
+    }
+    if (inputs[1]->type() == FCONST) {
+      if (inputs[0]->type() == ICONST) {
+        return FConstValue::make(dynamic_cast<const IConstValue*>(inputs[0].get())->value() -
+                                 dynamic_cast<const FConstValue*>(inputs[1].get())->value());
+      }
+      if (inputs[0]->type() == FCONST) {
+        return FConstValue::make(dynamic_cast<const FConstValue*>(inputs[0].get())->value() -
+                                 dynamic_cast<const FConstValue*>(inputs[1].get())->value());
+      }
+      // Rewrite into an add with the constant on the lhs, slightly simplifying subsequent merge logic.
+      fn = "add";
+      inputs[1] = IConstValue::make(0 - dynamic_cast<const FConstValue*>(inputs[1].get())->value());
+      std::swap(inputs[0], inputs[1]);
+    }
+  }
   if (fn == "add") {
     if (inputs[0] == zeroi || inputs[0] == zerof) {
       return inputs[1];
     }
     if (inputs[1] == zeroi || inputs[1] == zerof) {
+      return inputs[0];
+    }
+    if (inputs[1]->type() == ICONST) {
+      if (inputs[0]->type() == ICONST) {
+        return IConstValue::make(dynamic_cast<const IConstValue*>(inputs[0].get())->value() +
+                                 dynamic_cast<const IConstValue*>(inputs[1].get())->value());
+      }
+      if (inputs[0]->type() == FCONST) {
+        return FConstValue::make(dynamic_cast<const FConstValue*>(inputs[0].get())->value() +
+                                 dynamic_cast<const IConstValue*>(inputs[1].get())->value());
+      }
+      // Rewrite to put the constant on the lhs, slightly simplifying subsequent merge logic.
+      std::swap(inputs[0], inputs[1]);
+    }
+    if (inputs[1]->type() == FCONST) {
+      if (inputs[0]->type() == ICONST) {
+        return FConstValue::make(dynamic_cast<const IConstValue*>(inputs[0].get())->value() +
+                                 dynamic_cast<const FConstValue*>(inputs[1].get())->value());
+      }
+      if (inputs[0]->type() == FCONST) {
+        return FConstValue::make(dynamic_cast<const FConstValue*>(inputs[0].get())->value() +
+                                 dynamic_cast<const FConstValue*>(inputs[1].get())->value());
+      }
+      // Rewrite to put the constant on the lhs, slightly simplifying subsequent merge logic.
+      std::swap(inputs[0], inputs[1]);
+    }
+    if (inputs[1]->type() == FUNCTION && (inputs[0]->type() == ICONST || inputs[0]->type() == FCONST)) {
+      const auto* lhs = dynamic_cast<FunctionValue*>(inputs[1].get());
+      if (lhs->fn() == "add" || lhs->fn() == "sub") {
+        if (lhs->inputs_[0]->type() == ICONST) {
+          if (inputs[0]->type() == ICONST) {
+            return FunctionValue::make(
+                lhs->fn(), {IConstValue::make(dynamic_cast<const IConstValue*>(lhs->inputs_[0].get())->value() +
+                                              dynamic_cast<const IConstValue*>(inputs[0].get())->value()),
+                            lhs->inputs_[1]});
+          }
+          // inputs[0]->type() == FCONST
+          return FunctionValue::make(
+              lhs->fn(), {FConstValue::make(dynamic_cast<const IConstValue*>(lhs->inputs_[0].get())->value() +
+                                            dynamic_cast<const FConstValue*>(inputs[0].get())->value()),
+                          lhs->inputs_[1]});
+        }
+        if (lhs->inputs_[0]->type() == FCONST) {
+          if (inputs[0]->type() == ICONST) {
+            return FunctionValue::make(
+                lhs->fn(), {IConstValue::make(dynamic_cast<const FConstValue*>(lhs->inputs_[0].get())->value() +
+                                              dynamic_cast<const IConstValue*>(inputs[0].get())->value()),
+                            lhs->inputs_[1]});
+          }
+          // inputs[0]->type() == FCONST
+          return FunctionValue::make(
+              "add", {FConstValue::make(dynamic_cast<const FConstValue*>(lhs->inputs_[0].get())->value() +
+                                        dynamic_cast<const FConstValue*>(inputs[0].get())->value()),
+                      lhs->inputs_[1]});
+        }
+      }
+    }
+  }
+  if (fn == "div") {
+    if (inputs[1] == onei || inputs[1] == onef) {
       return inputs[0];
     }
   }
@@ -63,6 +153,17 @@ std::shared_ptr<Value> FunctionValue::make(const std::string& fn, const std::vec
       return std::dynamic_pointer_cast<IConstValue>(inputs[0])->value() ? inputs[1] : inputs[2];
     }
   }
+  if (fn == "broadcast") {
+    if (inputs[1] == onei) {
+      return inputs[0];
+    }
+    if (inputs[0] == onei) {
+      return inputs[1];
+    }
+    if (inputs[0] == inputs[1]) {
+      return inputs[0];
+    }
+  }
 
   auto result = Interned<FunctionValue>::make(fn, inputs);
   IVLOG(4, "Making FunctionValue " << *result << " from fn " << fn);
@@ -75,10 +176,10 @@ std::shared_ptr<Value> FunctionValue::make(const std::string& fn, const std::vec
   return result;
 }
 
-FunctionValue::FunctionValue(const std::string& fn, const std::vector<std::shared_ptr<Value>>& inputs)
-    : fn_{fn}, inputs_{inputs} {
-  IVLOG(4, "Building function value \"" << fn << "\" over " << inputs.size() << " inputs");
-  if (fn == "prng_step") {
+FunctionValue::FunctionValue(std::string fn, std::vector<std::shared_ptr<Value>> inputs)
+    : fn_{std::move(fn)}, inputs_{std::move(inputs)} {
+  IVLOG(4, "Building function value \"" << fn_ << "\" over " << inputs_.size() << " inputs");
+  if (fn_ == "prng_step") {
     if (inputs_.size() < 1) {
       throw std::runtime_error("prng_step must have at least one input");
     }
@@ -90,7 +191,7 @@ FunctionValue::FunctionValue(const std::string& fn, const std::vector<std::share
     }
     return;
   }
-  if (fn == "prng_value") {
+  if (fn_ == "prng_value") {
     if (inputs_.size() != 1) {
       throw std::runtime_error("prng_value must have exactly one input");
     }
@@ -99,12 +200,12 @@ FunctionValue::FunctionValue(const std::string& fn, const std::vector<std::share
     }
     return;
   }
-  if (fn == "prng_state") {
+  if (fn_ == "prng_state") {
     dims_.push_back(IConstValue::make(3));
     dims_.push_back(IConstValue::make(k_rng_size));
     return;
   }
-  if (fn == "shape") {
+  if (fn_ == "shape") {
     if (inputs_.size() != 1) {
       throw std::runtime_error("shape must have exactly one input");
     }
@@ -121,7 +222,7 @@ FunctionValue::FunctionValue(const std::string& fn, const std::vector<std::share
   IVLOG(4, "  Final max_dims is " << max_dims);
   dims_.resize(max_dims);
   for (size_t i = 0; i < max_dims; i++) {
-    for (size_t j = 0; j < inputs.size(); j++) {
+    for (size_t j = 0; j < inputs_.size(); j++) {
       auto offset = max_dims - inputs_[j]->num_dims();
       if (i < offset) {
         continue;
@@ -130,7 +231,7 @@ FunctionValue::FunctionValue(const std::string& fn, const std::vector<std::share
         dims_[i] = inputs_[j]->dim_value(i - offset);
         continue;
       }
-      if (dims_[i] != inputs[j]->dim_value(i - offset)) {
+      if (dims_[i] != inputs_[j]->dim_value(i - offset)) {
         dims_[i] = FunctionValue::make("broadcast", {dims_[i], inputs_[j]->dim_value(i - offset)});
       }
     }

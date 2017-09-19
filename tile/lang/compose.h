@@ -121,8 +121,8 @@ class PlaceholderValue final : public Value {
 // and returns an output tensor
 struct FunctionValue final : public Value {
  public:
-  static std::shared_ptr<Value> make(const std::string& fn, const std::vector<std::shared_ptr<Value>>& inputs);
-  FunctionValue(const std::string& fn, const std::vector<std::shared_ptr<Value>>& inputs);
+  static std::shared_ptr<Value> make(std::string fn, std::vector<std::shared_ptr<Value>> inputs);
+  FunctionValue(std::string fn, std::vector<std::shared_ptr<Value>> inputs);
 
   const std::string& fn() const { return fn_; }
   const std::vector<std::shared_ptr<Value>> inputs() const { return inputs_; }
