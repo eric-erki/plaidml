@@ -49,7 +49,7 @@ class SharedBuffer final : public Buffer {
 
   boost::future<void*> MapCurrent(const std::vector<std::shared_ptr<hal::Event>>& deps) final;
   boost::future<void*> MapDiscard(const std::vector<std::shared_ptr<hal::Event>>& deps) final;
-  std::shared_ptr<hal::Event> Unmap() final;
+  std::shared_ptr<hal::Event> Unmap(const context::Context& ctx) final;
 
   void* base() const final { return base_; }
 
@@ -127,8 +127,9 @@ boost::future<void*> SharedBuffer::MapDiscard(const std::vector<std::shared_ptr<
   return MapCurrent(deps);
 }
 
-std::shared_ptr<hal::Event> SharedBuffer::Unmap() {
-  return std::make_shared<Event>(arena_->device_state()->cl_ctx(), CLObj<cl_event>());
+std::shared_ptr<hal::Event> SharedBuffer::Unmap(const context::Context& ctx) {
+  return std::make_shared<Event>(ctx, arena_->device_state(), CLObj<cl_event>(),
+                                 arena_->device_state()->cl_normal_queue());
 }
 
 // SharedMemory implementation

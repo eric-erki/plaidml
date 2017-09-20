@@ -140,12 +140,18 @@ class CLObj final {
   CLObj(O obj) : obj_{obj} {}  // NOLINT
   // clang-format on
 
-  CLObj(const CLObj<O>& other) : obj_{other.obj_} { Retain(obj_); }
+  CLObj(const CLObj<O>& other) : obj_{other.obj_} {
+    if (obj_) {
+      Retain(obj_);
+    }
+  }
 
   CLObj(CLObj<O>&& other) : obj_{other.obj_} { other.obj_ = nullptr; }
 
   CLObj& operator=(const CLObj<O>& other) {
-    Retain(other.obj_);
+    if (other.obj_) {
+      Retain(other.obj_);
+    }
     if (obj_) {
       Release(obj_);
     }

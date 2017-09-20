@@ -873,20 +873,22 @@ void RunRequest::ApplyIOUpdates(std::forward_list<PendingUpdate> io_updates) {
 
 boost::future<void> RunRequest::LogResults(const context::Context& ctx) {
   context::Context ctx_copy{ctx};
-  return boost::when_all(output_ready_futures_.begin(), output_ready_futures_.end()).then([
-    ctx = std::move(ctx_copy), kinfos = std::move(kernel_log_info_)
-  ](boost::future<decltype(output_ready_futures_)> outputs) {
-    outputs.get();
-    for (const auto& kinfo : kinfos) {
-      auto result = kinfo.done->GetFuture().get();
-      if (VLOG_IS_ON(1)) {
-        std::chrono::duration<double> duration = result->GetDuration();
-        VLOG(1) << "Ran " << kinfo.kname << ": dur=" << duration.count()
-                << " GFL/s=" << kinfo.tot_flops / duration.count() << " GBP/s= " << kinfo.tot_bytes / duration.count();
-      }
-      result->LogStatistics();
-    }
-  });
+  auto when_future = boost::when_all(output_ready_futures_.begin(), output_ready_futures_.end());
+  auto result = when_future.then(
+      [ ctx = std::move(ctx_copy), kinfos = std::move(kernel_log_info_) ](decltype(when_future) outputs)->void {
+        outputs.get();
+        for (const auto& kinfo : kinfos) {
+          auto result = kinfo.done->GetFuture().get();
+          if (VLOG_IS_ON(1)) {
+            std::chrono::duration<double> duration = result->GetDuration();
+            VLOG(1) << "Ran " << kinfo.kname << ": dur=" << duration.count()
+                    << " GFL/s=" << kinfo.tot_flops / duration.count()
+                    << " GBP/s= " << kinfo.tot_bytes / duration.count();
+          }
+          result->LogStatistics();
+        }
+      });
+  return result;
 }
 
 }  // namespace

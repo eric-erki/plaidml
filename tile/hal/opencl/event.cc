@@ -86,8 +86,7 @@ Event::Event(const context::Context& ctx, const std::shared_ptr<DeviceState>& de
 boost::shared_future<std::shared_ptr<hal::Result>> Event::GetFuture() {
   std::lock_guard<std::mutex> lock{mu_};
   if (!cl_event_) {
-    return boost::make_exceptional_future<std::shared_ptr<hal::Result>>(
-        std::make_exception_ptr(error::NotFound("No associated operation")));
+    return boost::make_ready_future<std::shared_ptr<hal::Result>>(state_->result);
   }
 
   if (!started_) {
