@@ -172,7 +172,7 @@ PLAIDML_API void plaidml_free_buffer(plaidml_buffer* buffer);
 //
 // A NULL buffer may be supplied; this will always result in a NULL address,
 // and an out-of-memory error in the current thread's thread-local storage.
-PLAIDML_API plaidml_mapping* plaidml_map_buffer_current(vai_ctx* ctx, plaidml_buffer* buffer,
+PLAIDML_API plaidml_mapping* plaidml_map_buffer_current(plaidml_buffer* buffer,
                                                         void (*callback)(void* arg, plaidml_mapping* mapping),
                                                         void* arg);
 
@@ -353,7 +353,7 @@ PLAIDML_API plaidml_function* plaidml_build_coded_function(const char* code);
 // TODO: Make more general method to serialize things.
 
 // Load a function (possibly with bound tensors) from a file
-PLAIDML_API plaidml_function* plaidml_load_function(plaidml_device* dev, const char* file);
+PLAIDML_API plaidml_function* plaidml_load_function(vai_ctx* ctx, plaidml_device* dev, const char* file);
 
 // Store a function (possibly with bound tensors) from to a file
 PLAIDML_API bool plaidml_save_function(plaidml_function* func, const char* file);

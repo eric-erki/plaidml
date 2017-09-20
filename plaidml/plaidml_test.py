@@ -43,7 +43,7 @@ class TestPlaidML(unittest.TestCase):
     ctx = plaidml.Context()
     with plaidml.open_device(ctx, testing.plaidml_config.config()) as dev:
       buf = plaidml.Tensor(dev, plaidml.Shape(ctx, plaidml.DATA_FLOAT32, 10))
-      with buf.mmap_current(ctx) as view:
+      with buf.mmap_current() as view:
         self.assertEqual(len(view), 10)
         view[0] = 1
         with self.assertRaises(IndexError):
@@ -79,7 +79,7 @@ class TestPlaidML(unittest.TestCase):
       
       O = plaidml.Tensor(dev, oShape)
       plaidml.run(ctx, reshape, inputs={"I": I}, outputs={"O":O})
-      with O.mmap_current(ctx) as view:
+      with O.mmap_current() as view:
         self.assertEqual(view[0], 1.0)
         self.assertEqual(view[1], 2.0)
         self.assertEqual(view[2], 3.0)
@@ -126,7 +126,7 @@ class TestPlaidML(unittest.TestCase):
 
     plaidml.run(ctx, matmul, inputs={"B": b, "C": c}, outputs={"A": a})
 
-    with a.mmap_current(ctx) as view:
+    with a.mmap_current() as view:
       self.assertEqual(view[0], 1.0+8.0+21.0)
       self.assertEqual(view[1], 2.0+10.0+24.0)
       self.assertEqual(view[2], 3.0+12.0+27.0)
@@ -166,7 +166,7 @@ class TestPlaidML(unittest.TestCase):
         view.copy_from_ndarray(expected)
         view.writeback()
 
-      with tensor.mmap_current(ctx) as view:
+      with tensor.mmap_current() as view:
         view.copy_to_ndarray(actual)
 
       pr.disable()

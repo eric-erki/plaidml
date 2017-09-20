@@ -16,8 +16,8 @@ using namespace vertexai::plaidml;  // NOLINT
 
 TEST(PlaidML_CPP_API, Composition) {
   vai_clear_status();
-  std::vector<device_config> configs = enumerate_devices(vertexai::testing::PlaidMLConfig());
   auto ctx = std::make_shared<vertexai::ctx>();
+  std::vector<device_config> configs = enumerate_devices(ctx, vertexai::testing::PlaidMLConfig());
 
   for (size_t i = 0; i < configs.size(); i++) {
     std::cout << i << ": " << configs[i].name() << "->" << configs[i].description() << std::endl;
@@ -78,7 +78,7 @@ TEST(PlaidML_CPP_API, MultiDep) {
   vai_clear_status();
   auto ctx = std::make_shared<vertexai::ctx>();
 
-  auto devices = enumerate_devices(vertexai::testing::PlaidMLConfig());
+  auto devices = enumerate_devices(ctx, vertexai::testing::PlaidMLConfig());
   device dev = devices[0].open();
   function multidep(R"(
     function (I0[N0, A0, N2], I1[N0, A1, N2], I2[N0, A2, N2]) -> (O) {

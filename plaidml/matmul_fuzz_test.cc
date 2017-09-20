@@ -27,7 +27,8 @@ namespace plaidml = vertexai::plaidml;
 class MatMulTest : public ::testing::TestWithParam<std::tuple<size_t, size_t, size_t>> {
  public:
   static void SetUpTestCase() {
-    auto devices = plaidml::enumerate_devices(vertexai::testing::PlaidMLConfig());
+    auto ctx = std::make_shared<vertexai::ctx>();
+    auto devices = plaidml::enumerate_devices(ctx, vertexai::testing::PlaidMLConfig());
     dev_ = devices[0].open();
     matmul_ = plaidml::function{"function (B[X,Z], C[Z,Y]) -> (A) { A[x,y : X,Y] = +(B[x,z] * C[z,y]); }"};
   }

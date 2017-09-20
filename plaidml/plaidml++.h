@@ -99,8 +99,8 @@ struct dimension {
   int64_t stride;
 };
 
-inline std::vector<device_config> enumerate_devices();
-inline std::vector<device_config> enumerate_devices(const std::string& config = "");
+inline std::vector<device_config> enumerate_devices(const std::shared_ptr<ctx>& ctx);
+inline std::vector<device_config> enumerate_devices(const std::shared_ptr<ctx>& ctx, const std::string& config = "");
 
 class base_shape {
   friend class base_tensor;
@@ -152,6 +152,8 @@ class base_shape {
   uint64_t size(size_t i) const { return plaidml_get_shape_dimension_size(ptr_.get(), i); }
   int64_t stride(size_t i) const { return plaidml_get_shape_dimension_stride(ptr_.get(), i); }
   uint64_t buffer_size() const { return plaidml_get_shape_buffer_size(ptr_.get()); }
+
+  const std::shared_ptr<ctx>& get_context() const { return ctx_; }
 
  protected:
   explicit base_shape(const std::shared_ptr<ctx>& ctx, const std::shared_ptr<plaidml_shape>& ptr)
@@ -343,7 +345,7 @@ class tensor : public base_tensor {
   tensor(const std::shared_ptr<ctx>& ctx, const buffer& buf, const shape<T>& shape) : base_tensor(ctx, buf, shape) {}
 
   mapping<T> map(map_for_read_t) {
-    std::unique_ptr<plaidml_mapping> m{plaidml_map_buffer_current(ctx_->get_ctx(), buf_.get(), NULL, NULL)};
+    std::unique_ptr<plaidml_mapping> m{plaidml_map_buffer_current(buf_.get(), NULL, NULL)};
     return mapping<T>{ctx_, buf_, shape_, std::move(m), mapping_destructor_behavior::discard};
   }
 
@@ -353,7 +355,7 @@ class tensor : public base_tensor {
   void map(map_for_read_t, vai_ctx* ctx, C&& on_complete) {
     std::unique_ptr<completion> comp{
         static_cast<completion*>(new typed_completion<C>(ctx_, buf_, shape_, std::forward<C>(on_complete)))};
-    plaidml_map_buffer_current(ctx_->get_ctx(), buf_.get(), &OnMapped, comp.release());
+    plaidml_map_buffer_current(buf_.get(), &OnMapped, comp.release());
   }
 
   mapping<T> map(map_for_write_t) {
@@ -362,7 +364,7 @@ class tensor : public base_tensor {
   }
 
   mapping<T> map(map_for_update_t) {
-    std::unique_ptr<plaidml_mapping> m{plaidml_map_buffer_current(ctx_->get_ctx(), buf_.get(), NULL, NULL)};
+    std::unique_ptr<plaidml_mapping> m{plaidml_map_buffer_current(buf_.get(), NULL, NULL)};
     return mapping<T>{ctx_, buf_, shape_, std::move(m), mapping_destructor_behavior::writeback_if_normal};
   }
 
@@ -500,7 +502,8 @@ class function {
   }
 
   // Load and save function
-  inline void load(const device& dev, const std::string& file);  // Later, after dev is defined
+  inline void load(const std::shared_ptr<ctx>& ctx, const device& dev,
+                   const std::string& file);  // Later, after dev is defined
   void save(const std::string& file) {
     vai_exception::check_and_throw(plaidml_save_function(ptr_.get(), file.c_str()));
   }
@@ -678,22 +681,23 @@ class device {
     return r;
   }
 
-  base_tensor allocate(const base_shape& s) const { return base_tensor(ctx_, allocate(s.buffer_size()), s); }
+  base_tensor allocate(const base_shape& s) const { return base_tensor(s.get_context(), allocate(s.buffer_size()), s); }
 
   template <class T>
   tensor<T> allocate(const shape<T>& s) const {
-    return tensor<T>(ctx_, allocate(s.buffer_size()), s);
+    return tensor<T>(s.get_context(), allocate(s.buffer_size()), s);
   }
 
  private:
   explicit device(const std::shared_ptr<ctx>& ctx, plaidml_device* raw) : ctx_{ctx}, ptr_(raw, plaidml_close_device) {}
   std::shared_ptr<ctx> ctx_;
   std::shared_ptr<plaidml_device> ptr_;
+  const std::shared_ptr<ctx>& get_context() const { return ctx_; }
 };
 
 class device_config {
-  friend std::vector<device_config> enumerate_devices(const std::string& config);
-  friend std::vector<device_config> enumerate_devices();
+  friend std::vector<device_config> enumerate_devices(const std::shared_ptr<ctx>& ctx);
+  friend std::vector<device_config> enumerate_devices(const std::shared_ptr<ctx>& ctx, const std::string& config);
 
  public:
   // Get any string based property
@@ -729,10 +733,8 @@ class device_config {
   plaidml_devconf* config_;
 };
 
-std::vector<device_config> enumerate_devices() {
+std::vector<device_config> enumerate_devices(const std::shared_ptr<ctx>& ctx) {
   std::vector<device_config> out;
-  auto ctx = std::make_shared<vertexai::ctx>();
-  vai_exception::check_and_throw(ctx);
   std::shared_ptr<plaidml_device_enumerator> dev_enum(plaidml_alloc_device_enumerator(ctx->get_ctx(), NULL, NULL),
                                                       plaidml_free_device_enumerator);
   vai_exception::check_and_throw(dev_enum);
@@ -746,10 +748,9 @@ std::vector<device_config> enumerate_devices() {
   vai_clear_status();  // Since we always walk off the list, clear errors
   return out;
 }
-std::vector<device_config> enumerate_devices(const std::string& config) {
+
+std::vector<device_config> enumerate_devices(const std::shared_ptr<ctx>& ctx, const std::string& config) {
   std::vector<device_config> out;
-  auto ctx = std::make_shared<vertexai::ctx>();
-  vai_exception::check_and_throw(ctx);
   std::shared_ptr<plaidml_device_enumerator> dev_enum(
       plaidml_alloc_device_enumerator_with_config(ctx->get_ctx(), config.c_str(), NULL, NULL),
       plaidml_free_device_enumerator);
@@ -766,8 +767,9 @@ std::vector<device_config> enumerate_devices(const std::string& config) {
 }
 
 // Actually needs definitions of both classes
-void function::load(const device& dev, const std::string& file) {
-  ptr_ = std::shared_ptr<plaidml_function>(plaidml_load_function(dev.ptr_.get(), file.c_str()), plaidml_free_function);
+void function::load(const std::shared_ptr<ctx>& ctx, const device& dev, const std::string& file) {
+  ptr_ = std::shared_ptr<plaidml_function>(plaidml_load_function(ctx->get_ctx(), dev.ptr_.get(), file.c_str()),
+                                           plaidml_free_function);
   vai_exception::check_and_throw(ptr_);
 }
 

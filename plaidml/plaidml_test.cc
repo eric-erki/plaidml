@@ -150,7 +150,7 @@ TEST(PlaidML_C_API, BroadcastOne) {
   EXPECT_THAT(vai_last_status(), Eq(VAI_STATUS_OK));
 
   {
-    std::unique_ptr<plaidml_mapping> c_map{plaidml_map_buffer_current(ctx.get(), c_buf.get(), nullptr, nullptr)};
+    std::unique_ptr<plaidml_mapping> c_map{plaidml_map_buffer_current(c_buf.get(), nullptr, nullptr)};
     EXPECT_THAT(vai_last_status(), Eq(VAI_STATUS_OK));
     float* base = reinterpret_cast<float*>(plaidml_get_mapping_base(ctx.get(), c_map.get()));
     ASSERT_THAT(base, NotNull());
@@ -247,7 +247,7 @@ TEST(PlaidML_C_API, BroadcastBoth) {
   EXPECT_THAT(vai_last_status(), Eq(VAI_STATUS_OK));
 
   {
-    std::unique_ptr<plaidml_mapping> c_map{plaidml_map_buffer_current(ctx.get(), c_buf.get(), nullptr, nullptr)};
+    std::unique_ptr<plaidml_mapping> c_map{plaidml_map_buffer_current(c_buf.get(), nullptr, nullptr)};
     EXPECT_THAT(vai_last_status(), Eq(VAI_STATUS_OK));
     float* base = reinterpret_cast<float*>(plaidml_get_mapping_base(ctx.get(), c_map.get()));
     ASSERT_THAT(base, NotNull());
@@ -329,7 +329,7 @@ TEST(PlaidML_C_API, MatMul) {
   EXPECT_THAT(vai_last_status(), Eq(VAI_STATUS_OK));
 
   {
-    std::unique_ptr<plaidml_mapping> outmap{plaidml_map_buffer_current(ctx.get(), outbuf.get(), nullptr, nullptr)};
+    std::unique_ptr<plaidml_mapping> outmap{plaidml_map_buffer_current(outbuf.get(), nullptr, nullptr)};
     EXPECT_THAT(vai_last_status(), Eq(VAI_STATUS_OK));
     float* base = reinterpret_cast<float*>(plaidml_get_mapping_base(ctx.get(), outmap.get()));
     ASSERT_THAT(base, NotNull());
@@ -349,7 +349,7 @@ TEST(PlaidML_C_API, MatMul) {
 TEST(PlaidML_C_API, Save) {
   vai_clear_status();
   auto ctx = std::make_shared<vertexai::ctx>();
-  auto devices = plaidml::enumerate_devices(vertexai::testing::PlaidMLConfig());
+  auto devices = plaidml::enumerate_devices(ctx, vertexai::testing::PlaidMLConfig());
   plaidml::device dev = devices[0].open();
   plaidml::function matmul("function (B[X,Z], C[Z,Y]) -> (A) { A[x,y : X,Y] = +(B[x,z] * C[z,y]); }");
 
@@ -375,7 +375,7 @@ TEST(PlaidML_C_API, Save) {
   // Reload it, bind, and execute
   plaidml::function fixed_mul_2;
   plaidml::tensor<float> output = dev.allocate(plaidml::shape<float>(ctx, {1000, 1000}));
-  fixed_mul_2.load(dev, "test.plaidml");
+  fixed_mul_2.load(ctx, dev, "test.plaidml");
 
   plaidml::invoker(ctx, fixed_mul_2).set_input("C", fixed).set_output("A", output).invoke();
 

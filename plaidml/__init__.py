@@ -210,7 +210,6 @@ class _Library(plaidml.library.Library):
     # );
     self.plaidml_map_buffer_current = lib.plaidml_map_buffer_current
     self.plaidml_map_buffer_current.argtypes = [
-      ctypes.POINTER(plaidml.library._C_Context),  # vai_ctx* ctx
       ctypes.POINTER(_C_Buffer),  # plaidml_buffer* buffer
       _MAP_BUFFER_FUNCTYPE,  # void (*callback)(void* arg, plaidml_mapping* mapping)
       ctypes.c_void_p  # void* arg
@@ -832,6 +831,7 @@ class _Buffer(object):
   def __init__(self, ctx, dev, shape):
     self._as_parameter_ = _lib().plaidml_alloc_buffer(ctx, dev,
                                                       _lib().plaidml_get_shape_buffer_size(shape))
+    self._ctx = ctx
     dev._register_buffer(self)
 
 
@@ -979,10 +979,10 @@ class Tensor(_Var):
     return self._shape
 
   @contextlib.contextmanager
-  def mmap_current(self, ctx):
-    mapping = _lib().plaidml_map_buffer_current(ctx, self.buffer,
+  def mmap_current(self):
+    mapping = _lib().plaidml_map_buffer_current(self.buffer,
                                                 ctypes.cast(None, _MAP_BUFFER_FUNCTYPE), None)
-    yield _View(ctx, mapping, self.shape.dtype, self.shape.ctype,
+    yield _View(self.buffer._ctx, mapping, self.shape.dtype, self.shape.ctype,
                 _lib().plaidml_get_shape_element_count(self.shape), self.shape, None)
     _lib().plaidml_free_mapping(mapping)
 
@@ -994,7 +994,7 @@ class Tensor(_Var):
     _lib().plaidml_free_mapping(mapping)
 
   def as_ndarray(self, ctx):
-    mapping = _lib().plaidml_map_buffer_current(ctx, self.buffer,
+    mapping = _lib().plaidml_map_buffer_current(self.buffer,
                                                 ctypes.cast(None, _MAP_BUFFER_FUNCTYPE), None)
     return _View(ctx, mapping, self.shape.dtype, self.shape.ctype,
                  _lib().plaidml_get_shape_element_count(self.shape), self.shape,

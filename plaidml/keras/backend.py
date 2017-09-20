@@ -733,7 +733,7 @@ class _Tensor(_Var):
       
   def eval(self):
     out = np.ndarray(tuple(dim for dim in self.shape), dtype=self.dtype)
-    with self._value.mmap_current(_ctx) as view:
+    with self._value.mmap_current() as view:
       view.copy_to_ndarray(out)
     return out
 
@@ -859,7 +859,7 @@ class _Op(_Var):
     out = np.ndarray(tuple(dim.size for dim in tensor.shape.dimensions), dtype=self._dtype)
 
     # Copy the data
-    with tensor.mmap_current(_ctx) as view:
+    with tensor.mmap_current() as view:
       view.copy_to_ndarray(out)
 
     # Return a result

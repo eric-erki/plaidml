@@ -333,7 +333,11 @@ class BufferState : public tile::lang::BufferBase {
 }  // namespace
 
 struct plaidml_buffer {
+  context::Activity activity;
   std::shared_ptr<BufferState> state;
+  plaidml_buffer() {}
+  plaidml_buffer(context::Activity activity_, std::shared_ptr<BufferState> state_)
+      : activity{std::move(activity_)}, state{state_} {}
 };
 
 struct plaidml_mapping {
@@ -405,9 +409,10 @@ extern "C" plaidml_buffer* plaidml_alloc_buffer(vai_ctx* ctx, plaidml_device* de
   }
   try {
     context::Activity activity{ctx->activity.ctx(), "vertexai::AllocBuffer"};
-    return new plaidml_buffer{std::make_shared<BufferState>(
-        device->evaluator->get_platform()->MakeBuffer(ctx->activity.ctx(), device->evaluator->get_id(), size),
-        device->evaluator)};
+    return new plaidml_buffer{std::move(activity),
+                              std::make_shared<BufferState>(device->evaluator->get_platform()->MakeBuffer(
+                                                                ctx->activity.ctx(), device->evaluator->get_id(), size),
+                                                            device->evaluator)};
   } catch (...) {
     vertexai::SetLastException(std::current_exception());
     return nullptr;
@@ -416,23 +421,16 @@ extern "C" plaidml_buffer* plaidml_alloc_buffer(vai_ctx* ctx, plaidml_device* de
 
 extern "C" void plaidml_free_buffer(plaidml_buffer* buffer) { delete buffer; }
 
-extern "C" plaidml_mapping* plaidml_map_buffer_current(vai_ctx* ctx, plaidml_buffer* buffer,
+extern "C" plaidml_mapping* plaidml_map_buffer_current(plaidml_buffer* buffer,
                                                        void (*callback)(void* arg, plaidml_mapping* mapping),
                                                        void* arg) {
   if (!callback) {
     vertexai::Sync<plaidml_mapping*> sync;
-    plaidml_map_buffer_current(ctx, buffer, sync.callback(), sync.arg());
+    plaidml_map_buffer_current(buffer, sync.callback(), sync.arg());
     return sync.WaitForResult();
   }
-
   if (!buffer) {
     vertexai::SetLastOOM();
-    callback(arg, nullptr);
-    return nullptr;
-  }
-
-  if (!ctx) {
-    vertexai::SetLastStatus(VAI_STATUS_CANCELLED, status_strings::kCancelled);
     callback(arg, nullptr);
     return nullptr;
   }
@@ -447,8 +445,8 @@ extern "C" plaidml_mapping* plaidml_map_buffer_current(vai_ctx* ctx, plaidml_buf
   }
 
   try {
-    completion->rundown()->TryEnterGate(ctx->activity.ctx().gate());
-    context::Activity activity{ctx->activity.ctx(), "tile::MapCurrent"};
+    completion->rundown()->TryEnterGate(buffer->activity.ctx().gate());
+    context::Activity activity{buffer->activity.ctx(), "tile::MapCurrent"};
     auto fut = buffer->state->buffer()->MapCurrent(activity.ctx());
     fut.then([ completion, buffer_state = buffer->state,
                activity = std::move(activity) ](boost::future<std::unique_ptr<tile::View>> f) noexcept {
@@ -461,7 +459,6 @@ extern "C" plaidml_mapping* plaidml_map_buffer_current(vai_ctx* ctx, plaidml_buf
   } catch (...) {
     completion->OnException(std::current_exception());
   }
-
   return nullptr;
 }
 
@@ -759,13 +756,16 @@ static void write_tensor(zipFile f, const std::string& name, const TensorValue& 
   for (size_t i = 0; i < tdims.size(); i++) {
     rdims.push_back(tdims[i].size);
   }
-  std::shared_ptr<BufferState> bs = std::static_pointer_cast<BufferState>(tensor.buffer());
-  std::shared_ptr<plaidml_buffer> tb = std::unique_ptr<plaidml_buffer>(new plaidml_buffer{bs});
+
   std::unique_ptr<vai_ctx> ctx{vai_alloc_ctx()};
   if (!ctx) {
     throw std::runtime_error("Unable to allocate context in write_tensor");
   }
-  std::unique_ptr<plaidml_mapping> tm{plaidml_map_buffer_current(ctx.get(), tb.get(), nullptr, nullptr)};
+
+  std::shared_ptr<BufferState> bs = std::static_pointer_cast<BufferState>(tensor.buffer());
+  context::Activity activity(ctx->activity.ctx(), "vertexai::WriteTensor");
+  plaidml_buffer tb{std::move(activity), bs};
+  std::unique_ptr<plaidml_mapping> tm{plaidml_map_buffer_current(&tb, nullptr, nullptr)};
   if (!tm) {
     throw std::runtime_error("Unable to map tensor in write_tensor");
   }
@@ -809,15 +809,12 @@ static void readBufferFromZipFile(unzFile f, char* dest, std::size_t len) {
   }
 }
 
-static std::shared_ptr<TensorValue> read_tensor(unzFile f, const std::shared_ptr<Evaluator>& evaluator,
+static std::shared_ptr<TensorValue> read_tensor(vai_ctx* ctx, unzFile f, const std::shared_ptr<Evaluator>& evaluator,
                                                 const std::string& name) {
   if (unzLocateFile(f, name.c_str(), NULL) != UNZ_OK) {
     throw std::runtime_error(std::string("Tensor '") + name + "' not found in input.");
   }
-  std::unique_ptr<vai_ctx> ctx{vai_alloc_ctx()};
-  if (!ctx) {
-    throw std::runtime_error("Unable to allocate context in read_tensor");
-  }
+  context::Activity activity(ctx->activity.ctx(), "vertexai::ReadTensor");
   unz_file_info64 fi;
   unzOpenCurrentFile(f);
   unzGetCurrentFileInfo64(f, &fi, NULL, 0, NULL, 0, NULL, 0);
@@ -831,14 +828,13 @@ static std::shared_ptr<TensorValue> read_tensor(unzFile f, const std::shared_ptr
   size_t size = ts.buffer_size() * ((bit_width(ts.type) + 7) / 8);
   std::shared_ptr<BufferState> bs = std::make_shared<BufferState>(
       evaluator->get_platform()->MakeBuffer(ctx->activity.ctx(), evaluator->get_id(), size), evaluator);
-  std::shared_ptr<plaidml_buffer> tb = std::unique_ptr<plaidml_buffer>(new plaidml_buffer{bs});
-  std::unique_ptr<plaidml_mapping> tm{plaidml_map_buffer_discard(ctx.get(), tb.get())};
+  plaidml_buffer tb{std::move(activity), bs};
+  std::unique_ptr<plaidml_mapping> tm{plaidml_map_buffer_discard(ctx, &tb)};
   if (!tm) {
     throw std::runtime_error("Unable to map tensor in read_tensor");
   }
-  readBufferFromZipFile(f, plaidml_get_mapping_base(ctx.get(), tm.get()),
-                        plaidml_get_mapping_size(ctx.get(), tm.get()));
-  plaidml_writeback_mapping(ctx.get(), tm.get());
+  readBufferFromZipFile(f, plaidml_get_mapping_base(ctx, tm.get()), plaidml_get_mapping_size(ctx, tm.get()));
+  plaidml_writeback_mapping(ctx, tm.get());
   unzCloseCurrentFile(f);
   return tile::lang::TensorValue::make(bs, ts);
 }
@@ -857,6 +853,7 @@ static std::string read_string(unzFile f, const std::string& name) {
 }
 
 extern "C" bool plaidml_save_function(plaidml_function* function, const char* filename) {
+  std::unique_ptr<vai_ctx> ctx{vai_alloc_ctx()};
   try {
     zipFile out_file = zipOpen64(filename, 0);
     const auto& func = *function->func;
@@ -880,7 +877,7 @@ extern "C" bool plaidml_save_function(plaidml_function* function, const char* fi
   }
 }
 
-extern "C" plaidml_function* plaidml_load_function(plaidml_device* platform, const char* filename) {
+extern "C" plaidml_function* plaidml_load_function(vai_ctx* ctx, plaidml_device* platform, const char* filename) {
   try {
     unzFile in_file = unzOpen64(filename);
     std::string xo = read_string(in_file, "code");
@@ -889,7 +886,7 @@ extern "C" plaidml_function* plaidml_load_function(plaidml_device* platform, con
     std::vector<std::shared_ptr<TensorValue>> inputs;
     for (const auto& in : p.inputs) {
       if (in.name[0] == '_') {
-        inputs.push_back(read_tensor(in_file, platform->evaluator, "data_" + in.name));
+        inputs.push_back(read_tensor(ctx, in_file, platform->evaluator, "data_" + in.name));
       }
     }
     unzClose(in_file);

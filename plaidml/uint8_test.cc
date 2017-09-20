@@ -79,7 +79,7 @@ TEST(PlaidMLTest, Uints) {
   EXPECT_THAT(vai_last_status(), Eq(VAI_STATUS_OK));
 
   {
-    std::unique_ptr<plaidml_mapping> map_c{plaidml_map_buffer_current(ctx.get(), output_c.get(), nullptr, nullptr)};
+    std::unique_ptr<plaidml_mapping> map_c{plaidml_map_buffer_current(output_c.get(), nullptr, nullptr)};
     EXPECT_THAT(vai_last_status(), Eq(VAI_STATUS_OK));
     int32_t* buf_c = reinterpret_cast<int32_t*>(plaidml_get_mapping_base(ctx.get(), map_c.get()));
     ASSERT_THAT(buf_c, NotNull());
