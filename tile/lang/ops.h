@@ -92,12 +92,20 @@ struct Function {
   }
 };
 
+struct Attribute {
+  std::string name;
+  std::vector<std::string> params;
+};
+
+std::string to_string(const Attribute& attr);
+
 struct Op {
   enum { CONTRACTION, FUNCTION, CONSTANT } tag;
   std::string output;
   std::vector<std::string> inputs;
   Contraction c;
   Function f;
+  std::vector<Attribute> attributes;
 };
 
 std::string to_string(const Op& op);

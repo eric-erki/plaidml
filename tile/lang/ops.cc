@@ -86,20 +86,41 @@ std::string to_string(const Contraction& cnt) {
   return r;
 }
 
+std::string to_string(const Attribute& attr) {
+  std::string r = attr.name;
+  if (attr.params.size()) {
+    r += '(';
+    bool first = true;
+    for (const auto& param : attr.params) {
+      if (!first) {
+        r += ", ";
+      }
+      r += param;
+      first = false;
+    }
+    r += ')';
+  }
+  return r;
+}
+
 std::string to_string(const Op& op) {
   std::string r;
 
+  for (const auto& attr : op.attributes) {
+    r += "[[" + to_string(attr) + "]] ";
+  }
+
   switch (op.tag) {
     case Op::CONTRACTION:
-      r = to_string(op.c);
+      r += to_string(op.c);
       break;
 
     case Op::CONSTANT:
-      r = op.output + " = " + op.inputs[0];
+      r += op.output + " = " + op.inputs[0];
       break;
 
     case Op::FUNCTION:
-      r = op.output + " = " + op.f.fn + "(";
+      r += op.output + " = " + op.f.fn + "(";
       for (size_t i = 0; i < op.inputs.size(); i++) {
         if (i != 0) {
           r += ", ";

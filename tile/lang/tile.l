@@ -47,6 +47,8 @@ newline   [\n]
 "->"    { return ARROW; }
 "["     { return LBRACE; }
 "]"     { return RBRACE; }
+"[["    { return LLBRACE; }
+"]]"    { return RRBRACE; }
 "("     { return LPAREN; }
 ")"     { return RPAREN; }
 "{"     { return LCURLY; }

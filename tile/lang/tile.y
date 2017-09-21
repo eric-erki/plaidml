@@ -42,6 +42,8 @@ struct Value {
   vertexai::tile::lang::AggregationOp agg_op;
   std::vector<std::string> expr_list;
   vertexai::tile::lang::Op op;
+  vertexai::tile::lang::Attribute attr;
+  std::vector<vertexai::tile::lang::Attribute> attr_list;
 };
 
 #define YYSTYPE Value
@@ -88,6 +90,7 @@ int yyerror(yyscan_t s, Context& context, const char* message) {
 %token BIT_NOT "~"
 %token COMMA "," ASSIGN "=" SEMICOLON ";" ARROW "->"
 %token LBRACE "[" RBRACE "]" LPAREN "(" RPAREN ")" LCURLY "{" RCURLY "}" DOT "." 
+%token LLBRACE "[[" RRBRACE "]]"
 %token <s> ID IDXID
 %token <i> INT_LITERAL
 %token <s> FLOAT_LITERAL
@@ -98,6 +101,10 @@ int yyerror(yyscan_t s, Context& context, const char* message) {
 %type <s> expr 
 %type <expr_list> expr_list name_list
 %type <op> unary_con binary_con ternary_con
+%type <s> attribute_parameter
+%type <expr_list> attribute_parameter_list attribute_parameters
+%type <attr> attribute
+%type <attr_list> attribute_list
 
 %%
 
@@ -119,9 +126,37 @@ function
   | "function" "(" ")" "->" "(" outputs ")" "{" body "}" {}
 ;
 
+attributed_stmt
+  : stmt
+  | attribute_list stmt { context.program.ops.back().attributes = std::move($1); }
+;
+
+attribute_list
+  : attribute { $$ = std::vector<vertexai::tile::lang::Attribute>{$1}; }
+  | attribute_list attribute { $1.emplace_back(std::move($2)); $$ = std::move($1); }
+;
+
+attribute
+  : "[[" IDXID attribute_parameters "]]" { $$ = vertexai::tile::lang::Attribute{$2, std::move($3)}; }
+;
+
+attribute_parameters
+  : /* empty */ { $$ = std::vector<std::string>(); }
+  | "(" attribute_parameter_list ")" { $$ = std::move($2); }
+;
+
+attribute_parameter_list
+  : attribute_parameter { $$ = std::vector<std::string>{std::move($1)}; }
+  | attribute_parameter_list "," attribute_parameter { $1.emplace_back(std::move($3)); $$ = std::move($1); }
+;
+
+attribute_parameter:
+  IDXID
+;
+
 body
-  : stmt ";"
-  | body stmt ";"
+  : attributed_stmt ";"
+  | body attributed_stmt ";"
 ;
 
 name_list

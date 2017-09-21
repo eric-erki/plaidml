@@ -828,6 +828,21 @@ TEST_CASE("Check for switch optimization", "[switch]") {
   assert(kl.kernels.size() == 1);
 }
 
+TEST_CASE("Check attribute parsing", "[attr]") {
+  Parser p;
+  Program prog = p.Parse("function (A[I,K], B[K,J]) -> (O) { [[hello(world)]] O[i,j : I,J] = +(A[i,k] * B[k,j]); }");
+  REQUIRE(prog.ops.size() == 1);
+  const auto &op = prog.ops[0];
+  REQUIRE(op.attributes.size() == 1);
+  const auto &attr = op.attributes[0];
+  REQUIRE(attr.name == "hello");
+  REQUIRE(attr.params.size() == 1);
+  REQUIRE(attr.params[0] == "world");
+  REQUIRE(to_string(attr) == "hello(world)");
+  auto opstr = to_string(op);
+  REQUIRE(opstr.find("[[hello(world)]] O[") == 0);
+}
+
 }  // namespace
 }  // namespace lang
 }  // namespace tile
