@@ -1,0 +1,11 @@
+; DO NOT EDIT (unless you know what you are doing)
+;
+; This subdirectory is a git "subrepo", and this file is maintained by the
+; git-subrepo command. See https://github.com/git-commands/git-subrepo#readme
+;
+[subrepo]
+	remote = plaidml
+	branch = master
+	commit = 25f6ee3f8d7e8fb87588017880c811aed8637762
+	parent = 45aa1b77cd416f1b9a3dc0b52c962cb251ef113a
+	cmdver = 0.3.1
