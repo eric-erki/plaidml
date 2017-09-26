@@ -59,6 +59,8 @@ plaidml_cc_library(
         "opencl.cc",
         "result.cc",
         "result.h",
+        "zero_kernel.cc",
+        "zero_kernel.h",
     ] + select({
         "//bzl:arm7-ubuntu-14.04": OPENCL_1_0_IMPL,
         "//bzl:darwin": OPENCL_1_0_IMPL,
