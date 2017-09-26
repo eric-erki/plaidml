@@ -73,7 +73,7 @@ if PLAIDML_EVENTLOG_FILENAME:
 
     @atexit.register
     def close_eventlog():
-        _ctx.close_eventlog()
+        _ctx.shutdown()
 
 
 _device_lock = threading.Lock()
