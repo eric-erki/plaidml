@@ -175,7 +175,7 @@ static void GenReshape(KernelList& r, const Op& op, const Bindings& bindings,  /
 
   // Verify it matches output size
   if (out_shape.buffer_size() != buffer_size) {
-    throw std::runtime_error("Invalid rehape");
+    throw std::runtime_error("Invalid reshape");
   }
 
   // Predeclare types for nice syntax
