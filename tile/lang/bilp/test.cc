@@ -178,6 +178,132 @@ TEST(BilpTest, Subdivision1D) {
   EXPECT_EQ(res[Polynomial("k_0")].obj_val, 0);
   EXPECT_EQ(res[-Polynomial("k_0")].obj_val, -2);
 }
+
+TEST(MilpTest, RandomConstraintsTest) {
+  const int varSize = 8;
+  for (size_t test_count = 0; test_count < 20; ++test_count) {
+    std::vector<RangeConstraint> constraints;
+    constraints.emplace_back(Polynomial("x"), varSize);
+    constraints.emplace_back(Polynomial("y"), varSize);
+    constraints.emplace_back(Polynomial("z"), varSize);
+    constraints.emplace_back(Polynomial("w"), varSize);
+    for (int i = 0; i < rand() % 4 + 2; ++i) {                           // NOLINT (runtime/threadsafe_fn)
+      Rational x_coeff = Rational(rand() % 9 - 4, rand() % 4 + 1);       // NOLINT (runtime/threadsafe_fn)
+      Rational y_coeff = Rational(rand() % 11 - 5, rand() % 3 + 1);      // NOLINT (runtime/threadsafe_fn)
+      Rational z_coeff = Rational(rand() % 11 - 5, rand() % 5 + 1);      // NOLINT (runtime/threadsafe_fn)
+      Rational w_coeff = Rational(rand() % 15 - 7, rand() % 4 + 1);      // NOLINT (runtime/threadsafe_fn)
+      Rational const_term = Rational(rand() % 31 - 20, rand() % 4 + 1);  // NOLINT (runtime/threadsafe_fn)
+      constraints.emplace_back(x_coeff * Polynomial("x") + y_coeff * Polynomial("y") + z_coeff * Polynomial("z") +
+                                   w_coeff * Polynomial("w") + const_term,
+                               rand() % 10 + 12);
+    }
+
+    Integer x_min = varSize;
+    Integer x_max = -1;
+    Integer y_min = varSize;
+    Integer y_max = -1;
+    Integer z_min = varSize;
+    Integer z_max = -1;
+    Integer w_min = varSize;
+    Integer w_max = -1;
+    // Solve via brute force
+    bool is_feasible = false;
+    std::map<std::string, Rational> values;
+    for (int x = 0; x < varSize; ++x) {
+      values["x"] = x;
+      for (int y = 0; y < varSize; ++y) {
+        values["y"] = y;
+        for (int z = 0; z < varSize; ++z) {
+          values["z"] = z;
+          for (int w = 0; w < varSize; ++w) {
+            values["w"] = w;
+            bool is_feasible_here = true;
+            for (const RangeConstraint& c : constraints) {
+              Rational value = c.poly.eval(values);
+              if (value < 0 || c.range <= value || value != Floor(value)) {
+                is_feasible_here = false;
+                break;
+              }
+            }
+            if (is_feasible_here) {
+              is_feasible = true;
+              if (x < x_min) {
+                x_min = x;
+              }
+              if (x > x_max) {
+                x_max = x;
+              }
+              if (y < y_min) {
+                y_min = y;
+              }
+              if (y > y_max) {
+                y_max = y;
+              }
+              if (z < z_min) {
+                z_min = z;
+              }
+              if (z > z_max) {
+                z_max = z;
+              }
+              if (w < w_min) {
+                w_min = w;
+              }
+              if (w > w_max) {
+                w_max = w;
+              }
+            }
+          }
+        }
+      }
+    }
+    std::vector<Polynomial> objectives;
+    objectives.emplace_back(Polynomial("x"));
+    objectives.emplace_back(Polynomial("x", -1));
+    objectives.emplace_back(Polynomial("y"));
+    objectives.emplace_back(Polynomial("y", -1));
+    objectives.emplace_back(Polynomial("z"));
+    objectives.emplace_back(Polynomial("z", -1));
+    objectives.emplace_back(Polynomial("w"));
+    objectives.emplace_back(Polynomial("w", -1));
+    if (is_feasible) {
+      ILPSolver solver;
+      std::map<Polynomial, ILPResult> result = solver.batch_solve(constraints, objectives);
+      for (const auto& kvp : result) {
+        std::string var = kvp.first.GetNonzeroIndex();
+        Rational obj_val = kvp.second.obj_val;
+        if (obj_val < 0 || obj_val >= varSize) {
+          // This result would not have been found in brute force search, so skip
+          continue;
+        }
+        if (kvp.first[var] == 1) {
+          if (var == "x") {
+            EXPECT_EQ(x_min, obj_val);
+          } else if (var == "y") {
+            EXPECT_EQ(y_min, obj_val);
+          } else if (var == "z") {
+            EXPECT_EQ(z_min, obj_val);
+          } else if (var == "w") {
+            EXPECT_EQ(w_min, obj_val);
+          } else {
+            throw std::logic_error("Unexpected variable in RandomConstraintsTest");
+          }
+        } else if (kvp.first[var] == -1) {
+          if (var == "x") {
+            EXPECT_EQ(x_max, -obj_val);
+          } else if (var == "y") {
+            EXPECT_EQ(y_max, -obj_val);
+          } else if (var == "z") {
+            EXPECT_EQ(z_max, -obj_val);
+          } else if (var == "w") {
+            EXPECT_EQ(w_max, -obj_val);
+          } else {
+            throw std::logic_error("Unexpected variable in RandomConstraintsTest");
+          }
+        }
+      }
+    }
+  }
+}
 }  // namespace bilp
 }  // namespace lang
 }  // namespace tile
