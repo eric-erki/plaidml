@@ -425,6 +425,24 @@ void TypeCheck(Program* prog, Bindings* vars) {
         vars->emplace(op.output, Binding(SimpleShape(out_type, out_shape)));
         continue;
       }
+      if (op.f.fn == "reshape") {
+        if (op.inputs.size() < 1) {
+          throw new std::runtime_error("Reshape requires at least one input.");
+        }
+        const Binding& it = vars->at(op.inputs[0]);
+        if (it.tag != Binding::TENSOR) {
+          throw new std::runtime_error("Reshape requires one input that is a tensor");
+        }
+        std::vector<size_t> sizes;
+        for (size_t i = 1; i < op.inputs.size(); i++) {
+          if (vars->at(op.inputs[i]).tag != Binding::ICONST) {
+            throw std::runtime_error("Additional parameters to reshape call must be constant integers");
+          }
+          sizes.push_back(vars->at(op.inputs[i]).iconst);
+        }
+        vars->emplace(op.output, Binding(SimpleShape(it.shape.type, sizes)));
+        continue;
+      }
       if (op.f.fn == "prng_step") {
         if (op.inputs.size() < 1) {
           throw std::runtime_error("prng_step must have at least one parameter");

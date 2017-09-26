@@ -7,6 +7,7 @@
 #include "tile/lang/gen_special.h"
 #include "tile/lang/replace.h"
 #include "tile/lang/sym_poly.h"
+#include "tile/lang/symbolic.h"
 #include "tile/lang/type.h"
 
 namespace vertexai {
@@ -179,13 +180,13 @@ std::shared_ptr<Value> FunctionValue::make(std::string fn, std::vector<std::shar
 FunctionValue::FunctionValue(std::string fn, std::vector<std::shared_ptr<Value>> inputs)
     : fn_{std::move(fn)}, inputs_{std::move(inputs)} {
   IVLOG(4, "Building function value \"" << fn_ << "\" over " << inputs_.size() << " inputs");
-  if (fn_ == "prng_step") {
+  if (fn_ == "prng_step" || fn_ == "reshape") {
     if (inputs_.size() < 1) {
-      throw std::runtime_error("prng_step must have at least one input");
+      throw std::runtime_error("prng_step/reshape must have at least one input");
     }
     for (size_t i = 1; i < inputs_.size(); i++) {
       if (inputs_[i]->num_dims() != 0) {
-        throw std::runtime_error("prng_step sizes must be scalars");
+        throw std::runtime_error("prng_step/reshape sizes must be scalars");
       }
       dims_.push_back(inputs_[i]);
     }
@@ -490,6 +491,21 @@ std::string BoundFunction::Apply(const std::shared_ptr<Value>& val) {
     return it->second;
   }
   std::string name = ValueVisitor<std::string>::Apply(val);
+  /*
+  auto it2 = g_deriv_source.find(val);
+  if (it2 != g_deriv_source.end()) {
+    Attribute d_of = { "d_of", {} };
+    for(const auto& s : it2->second) {
+      auto it3 = bindings_.find(s);
+      if (it3 == bindings_.end()) {
+        d_of.params.push_back("unknown");
+      } else {
+        d_of.params.push_back(it3->second);
+      }
+    }
+    prog_.ops.back().attributes.push_back(d_of);
+  }
+  */
   bindings_[val] = name;
   return name;
 }

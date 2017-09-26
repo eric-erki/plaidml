@@ -490,8 +490,6 @@ class _Var(object):
 
     def reshape(self, shape):
         in_dim_list = ["N{}".format(i) for i in range(self.ndim)]
-        in_idx_list = ["n{}".format(i) for i in range(self.ndim)]
-        out_idx_list = ["i{}".format(j) for j in range(len(shape))]
 
         # Fill in Nones in target shape
         o_shape = [self.shape[i] if shape[i] is None else shape[i] for i in range(len(shape))]
@@ -519,26 +517,10 @@ class _Var(object):
         py_shape = tuple(x if isinstance(x, int) else None for x in o_shape)
         o_shape = [str(x) for x in o_shape]
 
-        # Write index polynomials to flatten and unflatten
-        flatten_terms = ["*".join([in_dim_list[j] for j in range(i+1, self.ndim)] + [in_idx_list[i]])
-                                                                                            for i in range(self.ndim)]
-        flatten_idx_poly = " + ".join(flatten_terms)
-        unflatten_terms = ["*".join([o_shape[j] for j in range(i+1, len(o_shape))] + [out_idx_list[i]])
-                                                                                        for i in range(len(o_shape))]
-        unflatten_idx_poly = " + ".join(unflatten_terms)
-
         code = ('function (I[{idims}]) -> (O) {{\n' +
-                '  Assert = assert_reshape_compatible(mod({idim_prod}, {o_shape_sz}) == 0);\n' +
-                '  Flat[{flat_idx} : {idim_prod}] = +(I[{iidxs}]) no_defract;\n' +
-                '  O[{oidxs} : {odims}] = +(Flat[{uf_idx_poly}]) no_defract;\n' +
+	        '  O = reshape(I, {odims});\n'
                 '}}').format(idims=", ".join(in_dim_list),
-                             flat_idx=flatten_idx_poly,
-                             idim_prod="*".join(in_dim_list),
-                             o_shape_sz=o_shape_sz,
-                             iidxs=", ".join(in_idx_list),
-                             oidxs=", ".join(out_idx_list),
-                             odims=", ".join(o_shape),
-                             uf_idx_poly=unflatten_idx_poly)
+                             odims=", ".join(o_shape))
 
         return _Op('reshape', self.dtype, py_shape, code, {'I': self}, ['O'])
 
