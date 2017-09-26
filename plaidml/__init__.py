@@ -19,8 +19,12 @@ from collections import namedtuple
 from itertools import islice
 
 
-os.environ["PLAIDML_EXPERIMENTAL_CONFIG"] = os.path.join(pkg_resources.resource_filename('plaidml',  'experimental.json'))
-os.environ["PLAIDML_DEFAULT_CONFIG"] = os.path.join(pkg_resources.resource_filename('plaidml',  'config.json'))
+if 'PLAIDML_EXPERIMENTAL_CONFIG' not in os.environ:
+    os.environ['PLAIDML_EXPERIMENTAL_CONFIG'] = os.path.join(pkg_resources.resource_filename('plaidml',  'experimental.json'))
+
+if 'PLAIDML_DEFAULT_CONFIG' not in os.environ:
+    os.environ['PLAIDML_DEFAULT_CONFIG'] = os.path.join(pkg_resources.resource_filename('plaidml',  'config.json'))
+
 
 # Create types for all PlaidML structures, so that we can get some type checking.
 class _C_Devconf(ctypes.Structure):
