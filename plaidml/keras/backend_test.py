@@ -383,6 +383,22 @@ class TestBackendOps(unittest.TestCase):
     def testNotEqual(self, b):
         return b.not_equal(b.variable(m(3, 3)), b.variable(m(3, 3)))
 
+    @compareForwardExact()
+    def testLess(self, b):
+        return b.less(b.variable(2 * m(3, 3)), b.variable(m(3, 3)))
+
+    @compareForwardExact()
+    def testLessEqual(self, b):
+        return b.less_equal(b.variable(2 * m(3, 3)), b.variable(m(3, 3)))
+
+    @compareForwardExact()
+    def testGreater(self, b):
+        return b.greater(b.variable(2 * m(3, 3)), b.variable(m(3, 3)))
+
+    @compareForwardExact()
+    def testGreaterEqual(self, b):
+        return b.greater_equal(b.variable(2 * m(3, 3)), b.variable(m(3, 3)))
+
     @opTest([[m(3, 3)]])
     def testSquare(self, b, x):
         return [b.square(x)]

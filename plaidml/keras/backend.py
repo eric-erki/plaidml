@@ -482,6 +482,30 @@ class _Var(object):
                    OrderedDict([('B', other), ('C', self)]),
                    ['A'])
 
+    def __lt__(self, other):
+        return _Op('<', self.dtype, _broadcast_shape(self, other),
+                   'function (B, C) -> (A) { A = cmp_lt(B, C); }',
+                   OrderedDict([('B', self), ('C', other)]),
+                   ['A'])
+
+    def __le__(self, other):
+        return _Op('<=', self.dtype, _broadcast_shape(self, other),
+                   'function (B, C) -> (A) { A = cmp_le(B, C); }',
+                   OrderedDict([('B', self), ('C', other)]),
+                   ['A'])
+
+    def __gt__(self, other):
+        return _Op('>', self.dtype, _broadcast_shape(self, other),
+                   'function (B, C) -> (A) { A = cmp_gt(B, C); }',
+                   OrderedDict([('B', self), ('C', other)]),
+                   ['A'])
+
+    def __ge__(self, other):
+        return _Op('>=', self.dtype, _broadcast_shape(self, other),
+                   'function (B, C) -> (A) { A = cmp_ge(B, C); }',
+                   OrderedDict([('B', self), ('C', other)]),
+                   ['A'])
+
     def batch_flatten(self):
         # Flatten all but first dimension to a single dimension; leave 1st dimension unchanged
         # Note this is a specific kind of reshape that serves a special role in Keras (for Flatten layers)
@@ -1626,6 +1650,14 @@ def gradients(loss, variables):
                                                            [_plaidml_val(var) for var in variables]))]
 
 
+def greater(x, y):
+    return x > y
+
+
+def greater_equal(x, y):
+    return x >= y
+
+
 def identity(x):
     # Return a tensor with the same content as the input tensor.
     f = """function (I) -> (O) { O = I; }"""
@@ -1690,6 +1722,14 @@ def learning_phase():
     if _in_train_phase is None:
         _in_train_phase = placeholder(ndim=0)
     return _in_train_phase
+
+
+def less(x, y):
+    return x < y
+
+
+def less_equal(x, y):
+    return x <= y
 
 
 def log(x):
