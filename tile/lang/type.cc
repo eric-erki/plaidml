@@ -600,11 +600,21 @@ void TypeCheck(Program* prog, Bindings* vars) {
 }
 
 void OptimizeProgram(Program* p, const std::set<std::string>& inputs, const std::set<std::string>& outputs) {
-  // Figure out where variables are defined
+  // Figure out where variables are defined, and also setup identity mappings
+  // IVLOG(1, "Pre optimize:\n"  << to_string(*p));
   std::map<std::string, size_t> defs;
+  std::map<std::string, std::string> first_def;
   for (size_t i = 0; i < p->ops.size(); i++) {
     defs[p->ops[i].output] = i;
+    if (p->ops[i].tag == Op::FUNCTION && p->ops[i].f.fn == "ident" && !outputs.count(p->ops[i].output)) {
+      std::string first = p->ops[i].inputs[0];
+      if (first_def.count(first)) {
+        first = first_def.at(first);
+      }
+      first_def[p->ops[i].output] = first;
+    }
   }
+  // IVLOG(1, "Identity backrefs" << first_def);
   // Backtrack from outputs till we hit inputs or constants
   std::queue<std::string> to_proc;
   std::set<std::string> keep;
@@ -612,21 +622,37 @@ void OptimizeProgram(Program* p, const std::set<std::string>& inputs, const std:
     keep.insert(s);
     to_proc.push(s);
   }
+  auto deident = [&first_def](std::string& s) {
+    if (first_def.count(s)) {
+      s = first_def.at(s);
+    }
+  };
   while (!to_proc.empty()) {
     std::string s = to_proc.front();
     to_proc.pop();
-    const Op& op = p->ops[defs[s]];
+    Op& op = p->ops[defs[s]];
     if (op.tag == Op::CONSTANT) {
       continue;
     }
-    for (const std::string& s2 : op.inputs) {
-      if (keep.count(s2) || inputs.count(s2)) {
+    for (std::string& i : op.inputs) {
+      deident(i);
+      if (keep.count(i) || inputs.count(i)) {
         continue;
       }
-      keep.insert(s2);
-      to_proc.push(s2);
+      keep.insert(i);
+      to_proc.push(i);
+    }
+    if (op.tag != Op::CONTRACTION) {
+      continue;
+    }
+    for (auto& s : op.c.output_size) {
+      deident(s);
+    }
+    for (auto& s : op.c.specs) {
+      deident(s.id);
     }
   }
+  // IVLOG(1, "Replaced program:\n" << first_def);
   // Remove needless ops (TODO: do common subexpr elimination)
   std::vector<Op> new_ops;
   for (const Op& op : p->ops) {
