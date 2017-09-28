@@ -69,7 +69,7 @@ struct KernelInfo {
   size_t tot_flops;
   std::vector<KernelInfo> candidates;
   proto::KernelInfo info;
-  enum KernelType ktype = KernelType::kFunction;
+  KernelType ktype = KernelType::kFunction;
 };
 
 struct KernelList {

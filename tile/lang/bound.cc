@@ -68,8 +68,8 @@ std::vector<RangeConstraint> GatherConstraints(const Contraction& c, const std::
       out.push_back(RangeConstraint(spec[j], shapes[i].dims[j].size));
     }
   }
-  std::sort(out.begin(), out.end(),
-            [](const RangeConstraint& c1, const RangeConstraint& c2) { return (c1.range < c2.range); });
+  std::stable_sort(out.begin(), out.end(),
+                   [](const RangeConstraint& c1, const RangeConstraint& c2) { return (c1.range < c2.range); });
   // Return the output
   return out;
 }
