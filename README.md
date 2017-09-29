@@ -10,7 +10,7 @@ We're constantly working on expanding the set of qualifies platforms for running
 To ensure our users have a positive experience with performance, we only support a subset of commonly available hardware,
 though dedicated hackers can enable support for any devices that supports OpenCL 1.1 or higher.
 
-### Currently Supported Hardware
+### Officially Supported Hardware
 *These cards are tested for correctness and performance on every commit*
   * AMD
     * Fiji
@@ -26,7 +26,7 @@ though dedicated hackers can enable support for any devices that supports OpenCL
 
 The default configs we ship with should work with a slightly broader range of AMD and NVidia hardware.
 
-We also provide experimental configurations for all Fiji, Ellsemere, Kepler, and Pascal devices. 
+We also provide experimental configurations that support all AMD and NVidia GPUs, Intel CPUs, and ARM Mali.
 We can't promise they'll work well though. If your card isn't currently supported, helpful instructions will be printed;
 you can enable experimental cards by running with the environment variable `PLAIDML_EXPERIMENTAL=1`
 

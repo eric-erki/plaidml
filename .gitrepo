@@ -6,6 +6,7 @@
 [subrepo]
 	remote = plaidml
 	branch = master
-	commit = 25f6ee3f8d7e8fb87588017880c811aed8637762
+	commit = 21ffc68f9fe4bee00725514ce0d50ebbf2566ccc
 	parent = 45aa1b77cd416f1b9a3dc0b52c962cb251ef113a
-	cmdver = 0.3.1
+	cmdver = 0.4.0
+	method = merge
