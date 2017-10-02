@@ -165,6 +165,12 @@ std::shared_ptr<Value> FunctionValue::make(std::string fn, std::vector<std::shar
       return inputs[0];
     }
   }
+  if (fn == "log" && inputs.size() == 1) {
+    auto inner = std::dynamic_pointer_cast<FunctionValue>(inputs[0]);
+    if (inner && inner->fn() == "builtin_softmax") {
+      return FunctionValue::make("builtin_logsoftmax", inner->inputs());
+    }
+  }
 
   auto result = Interned<FunctionValue>::make(fn, inputs);
   IVLOG(4, "Making FunctionValue " << *result << " from fn " << fn);

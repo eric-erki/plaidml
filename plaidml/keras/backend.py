@@ -1104,7 +1104,7 @@ def cast(x, dtype):
 def categorical_crossentropy(target, output, from_logits=False):
     if from_logits:
         output = softmax(output)
-    else:
+    elif not isinstance(output, _Op) or output._ident != "softmax":
         output /= output.sum(axis=-1, keepdims=True)
         output = output.clip(epsilon(), 1.0 - epsilon())
     fixed_dims = ",".join("X{}".format(i) for i in range(len(output.shape)-1))
