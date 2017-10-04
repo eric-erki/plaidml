@@ -804,7 +804,7 @@ class TestBackendOps(unittest.TestCase):
 
     @opTest([[m(34)]])
     def testSliceBasic(self, b, x):
-        return [b.exp(x[2:30]), b.log(x[:5]), b.tanh(x[-4:])]
+        return [b.exp(x[2:30]), b.log(x[:5]), b.tanh(x[-4:]), b.sqrt(x[-1])]
 
     @opTest([[m(4, 3, 3, 2, 5)]])
     def testSliceMessy(self, b, x):

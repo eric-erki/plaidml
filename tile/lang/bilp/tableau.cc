@@ -180,6 +180,10 @@ bool Tableau::makeOptimal(bool already_canonical) {
 void Tableau::selectBasicVars() {
   // Makes basic_vars_ a map pointing from each row (other than 1st) to the basic var column for it
   basic_vars_ = RowToColLookup();  // Start from scratch
+  if (mat().size1() - 1 == 0) {
+    // No basic variables to find!
+    return;
+  }
   for (size_t j = 1; j < mat().size2() - 1; ++j) {
     // Skipping the first and last columns which can't be basic vars
     // Otherwise, search each column; if it contains all 0s and one 1, it's basic

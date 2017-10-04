@@ -254,7 +254,7 @@ class _Var(object):
 
         def __parse_slice(idx):
             if isinstance(key[idx], int):
-                return 1, None, str(key[idx])
+                return 1, None, key[idx]
             if ((not isinstance(key[idx].start, int) and not isinstance(key[idx].start, type(None))) or
                 (not isinstance(key[idx].stop, int) and not isinstance(key[idx].stop, type(None))) or
                 (not isinstance(key[idx].step, int) and not isinstance(key[idx].step, type(None)))):
@@ -328,7 +328,12 @@ class _Var(object):
         for idx in range(len(key)):
             length_numerator, step, offset = __parse_slice(idx)
             if step == None:
-                formula_list.append('{}'.format(offset))
+                # In this case offset is an int
+                if offset >= 0:
+                    formula_list.append('{}'.format(offset))
+                else:
+                    offset_list.append('Offset{} = N{}+{};'.format(idx, idx, offset))
+                    formula_list.append('{}'.format('Offset{}'.format(idx)))
             else:
                 var_list.append('i{}'.format(inner_idx))
                 dim_subs = {'numer': length_numerator, 'step': step}
@@ -337,7 +342,7 @@ class _Var(object):
                 else:
                     dim_list.append('({numer} + {step} + 1)/{step}'.format(**dim_subs))
                 if isinstance(length_numerator, str):
-                    shape.append('None')
+                    shape.append(None)
                     offset_list.append('Offset{} = {};'.format(idx, offset))
                     formula_list.append('{}*i{}+{}'.format(step, inner_idx, 'Offset{}'.format(idx)))
                 else:
@@ -348,7 +353,7 @@ class _Var(object):
         for idx in range(len(key), len(self.shape)):
             var_list.append('i{}'.format(inner_idx))
             dim_list.append('N{}'.format(idx))
-            shape.append('None')
+            shape.append(None)
             formula_list.append('i{}'.format(inner_idx))
             inner_idx += 1
         shape = tuple(shape)
