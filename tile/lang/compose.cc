@@ -23,6 +23,8 @@ std::shared_ptr<IConstValue> IConstValue::make(const int64_t& val) {
   return result;
 }
 
+std::map<std::shared_ptr<Value>, std::set<std::string>> g_ids;
+
 std::shared_ptr<Value> FunctionValue::make(std::string fn, std::vector<std::shared_ptr<Value>> inputs) {
   static std::shared_ptr<Value> zeroi = IConstValue::make(0);
   static std::shared_ptr<Value> onei = IConstValue::make(1);
@@ -263,9 +265,9 @@ std::shared_ptr<Value> ContractionValue::make(CombinationOp comb_op, Aggregation
   return result;
 }
 
-BoundFunction::BoundFunction(const std::string& code) {
+BoundFunction::BoundFunction(const std::string& code, const std::string& id) {
   Parser p;
-  prog_ = p.Parse(code);
+  prog_ = p.Parse(code, id);
   for (size_t i = 0; i < prog_.inputs.size(); i++) {
     in_pos_[prog_.inputs[i].name] = i;
   }
@@ -497,6 +499,14 @@ std::string BoundFunction::Apply(const std::shared_ptr<Value>& val) {
     return it->second;
   }
   std::string name = ValueVisitor<std::string>::Apply(val);
+  auto it2 = g_ids.find(val);
+  if (it2 != g_ids.end()) {
+    Attribute attr = {"pid", {}};
+    for (const auto& s : it2->second) {
+      attr.params.push_back(s);
+    }
+    prog_.ops.back().attributes.emplace_back(attr);
+  }
   /*
   auto it2 = g_deriv_source.find(val);
   if (it2 != g_deriv_source.end()) {
@@ -741,6 +751,13 @@ void FunctionApplication::SetDone() {
       bool no_defract = c.no_defract;
       bindings_[o.output] = ContractionValue::make(c.comb_op, c.agg_op, specs, cons, inputs, dims, no_defract);
       IVLOG(4, "FunApp::SetDone " << this << " binding " << o.output << " ->(contraction) " << *bindings_[o.output]);
+    }
+    for (const auto& attr : o.attributes) {
+      if (attr.name == "pid") {
+        for (const auto& s : attr.params) {
+          g_ids[bindings_[o.output]].emplace(s);
+        }
+      }
     }
   }
   // Run the 'updates'

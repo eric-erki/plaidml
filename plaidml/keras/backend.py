@@ -542,7 +542,7 @@ class _Var(object):
         o_shape = [str(x) for x in o_shape]
 
         code = ('function (I[{idims}]) -> (O) {{\n' +
-	        '  O = reshape(I, {odims});\n'
+                '  O = reshape(I, {odims});\n'
                 '}}').format(idims=", ".join(in_dim_list),
                              odims=", ".join(o_shape))
 
@@ -782,6 +782,7 @@ class _Op(_Var):
         self._dtype = dtype
         self._self_side_effects = side_effects
         self._cached_side_effects = None
+        self._backtrace = "".join(traceback.format_stack()[:-1])
         if not self._code:
             self._trace = traceback.extract_stack()[:-2]
 
@@ -813,7 +814,7 @@ class _Op(_Var):
                 if not self._code:
                     exn = PlaidMLKerasException('unable to construct value for operation \'%s\' at:\n%s' % (self.ident, ''.join(traceback.format_list(self._trace))))
                     raise exn
-                a = plaidml.Applier(_ctx, plaidml.Function(self._code))
+                a = plaidml.Applier(_ctx, plaidml.Function(self._code, self._backtrace))
                 for k, v in self._inputs.iteritems():
                     a.add_input(k, _plaidml_val(v, indent + 1))
                 self._value = a.add_output(self._outputs[0])
