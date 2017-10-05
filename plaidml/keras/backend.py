@@ -834,7 +834,7 @@ class _Op(_Var):
         if self._self_side_effects is not None:
             self._cached_side_effects = self._self_side_effects
         for ki, vi in self._inputs.iteritems():
-            if isinstance(vi, float) or isinstance(vi, int) or isinstance(vi, bool):
+            if not isinstance(vi, _Var):
                 continue
             inner_effects = vi._side_effects()
             for k, v in inner_effects.iteritems():
