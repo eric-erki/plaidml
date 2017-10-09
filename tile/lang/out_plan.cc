@@ -19,7 +19,7 @@ namespace tile {
 namespace lang {
 
 OutPlan::OutPlan(const FlatContraction& op, const std::vector<uint64_t>& tile, uint64_t threads, uint64_t mem_elems)
-    : op_(op), threads_(threads), local_size_(1), outputs_(1), group_dims_({1, 1, 1}) {
+    : op_(op), threads_(threads), local_size_(1), outputs_(1), group_dims_({{1, 1, 1}}) {
   using namespace sem::builder;  // NOLINT
   if (mem_elems < 1) {
     mem_elems = 1;

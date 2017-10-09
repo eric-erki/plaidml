@@ -119,10 +119,3 @@ cc_toolchain(
     supports_param_files = 1,
     visibility = ["//visibility:public"],
 )
-
-filegroup(
-    name = "x64win-files",
-    srcs = glob([
-        "x64win/mingw32/**/*",
-    ]),
-)

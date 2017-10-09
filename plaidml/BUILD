@@ -162,7 +162,10 @@ plaidml_py_library(
         "exceptions.py",
         "library.py",
     ],
-    data = ["config.json"] + select({
+    data = [
+        "config.json",
+        "experimental.json",
+    ] + select({
         "//bzl:x64_windows": [":plaidml.dll"],
         "//conditions:default": [":libplaidml.so"],
     }),
@@ -181,7 +184,7 @@ plaidml_py_test(
 
 pkg_tar(
     name = "py_deb_data",
-    files = [":py"],
+    srcs = [":py"],
     package_dir = "/usr/lib/python2.7/dist-packages/plaidml",
 )
 
