@@ -161,7 +161,7 @@ static void GenReshape(KernelList& r, const Op& op, const Bindings& bindings,  /
   IVLOG(3, "Making Reshape");
 
   if (op.inputs.size() < 1) {
-    throw std::runtime_error("prng must have at least one parameter");
+    throw std::runtime_error("reshape must have at least one parameter");
   }
 
   // Get input shape
