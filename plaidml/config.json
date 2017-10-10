@@ -37,7 +37,7 @@
           "mem_width": {"value": 128},
           "max_mem": {"value": 32768},
           "max_regs": {"value": 16384},
-          "goal_groups": {"value": 1},
+          "goal_groups": {"value": 16},
           "goal_flops_per_byte": {"value": 50},
           "enable_half": {"value": false}
         }
@@ -67,7 +67,7 @@
           "mem_width": {"value": 64},
           "max_mem": {"value": 15360},
           "max_regs": {"value": 32768},
-          "goal_groups": {"value": 7},
+          "goal_groups": {"value": 16},
           "goal_flops_per_byte": {"value": 46},
           "enable_half": {"value": false}
         }
