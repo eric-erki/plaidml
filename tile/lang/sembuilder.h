@@ -123,19 +123,28 @@ inline std::shared_ptr<ClampExpr> _Clamp(ExprPtr val, ExprPtr min, ExprPtr max) 
   }
 
 // Define some binary ops
-#define DEF_BINARY_OP(op)                                                                                          \
-  inline std::shared_ptr<vertexai::tile::sem::BinaryExpr> operator op(vertexai::tile::sem::ExprPtr lhs,            \
-                                                                      vertexai::tile::sem::ExprPtr rhs) {          \
-    return std::make_shared<vertexai::tile::sem::BinaryExpr>(#op, lhs, rhs);                                       \
-  }                                                                                                                \
-  template <typename T, typename = typename std::enable_if<std::is_integral<T>::value>::type>                      \
-  inline std::shared_ptr<vertexai::tile::sem::BinaryExpr> operator op(vertexai::tile::sem::ExprPtr lhs, T rhs) {   \
-    return std::make_shared<vertexai::tile::sem::BinaryExpr>(#op, lhs, vertexai::tile::sem::builder::_Const(rhs)); \
-  }                                                                                                                \
-  template <typename T, typename = typename std::enable_if<std::is_integral<T>::value>::type>                      \
-  inline std::shared_ptr<vertexai::tile::sem::BinaryExpr> operator op(T lhs, vertexai::tile::sem::ExprPtr rhs) {   \
-    auto lhs_const = vertexai::tile::sem::builder::_Const(lhs);                                                    \
-    return std::make_shared<vertexai::tile::sem::BinaryExpr>(#op, lhs_const, rhs);                                 \
+#define DEF_BINARY_OP(op)                                                                                             \
+  inline std::shared_ptr<vertexai::tile::sem::BinaryExpr> operator op(vertexai::tile::sem::ExprPtr lhs,               \
+                                                                      vertexai::tile::sem::ExprPtr rhs) {             \
+    return std::make_shared<vertexai::tile::sem::BinaryExpr>(#op, lhs, rhs);                                          \
+  }                                                                                                                   \
+  template <class T, typename std::enable_if<std::is_integral<T>::value>::type* = nullptr>                            \
+  inline std::shared_ptr<vertexai::tile::sem::BinaryExpr> operator op(vertexai::tile::sem::ExprPtr lhs, T rhs) {      \
+    auto rhs_const = vertexai::tile::sem::builder::_Const(rhs);                                                       \
+    return std::make_shared<vertexai::tile::sem::BinaryExpr>(#op, lhs, rhs_const);                                    \
+  }                                                                                                                   \
+  template <class T, typename std::enable_if<std::is_integral<T>::value>::type* = nullptr>                            \
+  inline std::shared_ptr<vertexai::tile::sem::BinaryExpr> operator op(T lhs, vertexai::tile::sem::ExprPtr rhs) {      \
+    auto lhs_const = vertexai::tile::sem::builder::_Const(lhs);                                                       \
+    return std::make_shared<vertexai::tile::sem::BinaryExpr>(#op, lhs_const, rhs);                                    \
+  }                                                                                                                   \
+  inline std::shared_ptr<vertexai::tile::sem::BinaryExpr> operator op(vertexai::tile::sem::ExprPtr lhs, double rhs) { \
+    auto rhs_const = vertexai::tile::sem::builder::_Const(rhs);                                                       \
+    return std::make_shared<vertexai::tile::sem::BinaryExpr>(#op, lhs, rhs_const);                                    \
+  }                                                                                                                   \
+  inline std::shared_ptr<vertexai::tile::sem::BinaryExpr> operator op(double lhs, vertexai::tile::sem::ExprPtr rhs) { \
+    auto lhs_const = vertexai::tile::sem::builder::_Const(lhs);                                                       \
+    return std::make_shared<vertexai::tile::sem::BinaryExpr>(#op, lhs_const, rhs);                                    \
   }
 
 namespace std {

@@ -43,11 +43,21 @@ const char* EventCommandTypeStr(cl_command_type code) {
     COMMAND_TYPE_STR(CL_COMMAND_MIGRATE_MEM_OBJECTS)
     COMMAND_TYPE_STR(CL_COMMAND_FILL_BUFFER)
     COMMAND_TYPE_STR(CL_COMMAND_FILL_IMAGE)
+#if defined(CL_COMMAND_SVM_FREE)
     COMMAND_TYPE_STR(CL_COMMAND_SVM_FREE)
+#endif
+#if defined(CL_COMMAND_SVM_MEMCPY)
     COMMAND_TYPE_STR(CL_COMMAND_SVM_MEMCPY)
+#endif
+#if defined(CL_COMMAND_SVM_MEMFILL)
     COMMAND_TYPE_STR(CL_COMMAND_SVM_MEMFILL)
+#endif
+#if defined(CL_COMMAND_SVM_MAP)
     COMMAND_TYPE_STR(CL_COMMAND_SVM_MAP)
+#endif
+#if defined(CL_COMMAND_SVM_UNMAP)
     COMMAND_TYPE_STR(CL_COMMAND_SVM_UNMAP)
+#endif
     default:
       return "Unknown cl_command_type";
   }
