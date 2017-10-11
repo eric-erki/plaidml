@@ -224,7 +224,7 @@ plaidml_py_wheel(
         "//bzl:arm7-ubuntu-14.04": "linux_armv7l",
         "//bzl:darwin": "macosx_10_10_x86_64",
         "//bzl:x64_windows": "win_amd64",
-        "//conditions:default": "linux_x86_64",
+        "//conditions:default": "manylinux1_x86_64",
     }),
     python = "py2",
 )

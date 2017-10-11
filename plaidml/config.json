@@ -50,8 +50,9 @@
               { "vendor_regex": "NVIDIA.*" },
               { "or": {
                   "sel": [
+                    { "name_regex": ".*GeForce.*" },
                     { "name_regex": ".*GTX.*" },
-                    { "name_regex": ".*Tesla K.*" },
+                    { "name_regex": ".*Tesla.*" },
                     { "name_regex": ".*TITAN.*" },
                     { "name_regex": ".*Pascal.*" },
                     { "name_regex": ".*Kepler.*" }
