@@ -154,6 +154,14 @@ plaidml_objc_library(
     ],
 )
 
+filegroup(
+    name = "configs",
+    srcs = [
+        "config.json",
+        "experimental.json",
+    ],
+)
+
 plaidml_py_library(
     name = "py",
     srcs = [
@@ -162,10 +170,7 @@ plaidml_py_library(
         "exceptions.py",
         "library.py",
     ],
-    data = [
-        "config.json",
-        "experimental.json",
-    ] + select({
+    data = [":configs"] + select({
         "//bzl:x64_windows": [":plaidml.dll"],
         "//conditions:default": [":libplaidml.so"],
     }),
@@ -208,8 +213,7 @@ plaidml_py_wheel(
     name = "wheel",
     srcs = [
         ":py",
-        "config.json",
-        "experimental.json",
+        ":configs",
     ] + select({
         "//bzl:x64_windows": ["//plaidml:plaidml.dll"],
         "//conditions:default": ["//plaidml:libplaidml.so"],
