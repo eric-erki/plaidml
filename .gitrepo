@@ -5,8 +5,8 @@
 ;
 [subrepo]
 	remote = plaidml
-	branch = vertexai-updates
-	commit = bb87c4388a2ccf3d041906ab217125a55047808d
-	parent = 45aa1b77cd416f1b9a3dc0b52c962cb251ef113a
+	branch = master
+	commit = fa03913a2159277f4ac1f9d351f1f134f9674573
+	parent = 2ee4ee5b775595e46490843383fb457475b02c92
 	cmdver = 0.4.0
-	method = merge
+	method = rebase
