@@ -27,12 +27,21 @@ DeviceState::Queue MakeQueue(const context::Context& ctx, cl_device_id did, cons
     mask = CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE;
   }
 
+  size_t max_trials = 1;
+  auto env_trials = std::getenv("PLAIDML_KERNEL_TRIALS");
+  if (env_trials) {
+    auto env_value = std::atoi(env_trials);
+    if (env_value) {
+      max_trials = env_value;
+    }
+  }
+
   // Probe the device for supported queue properties.
   // Clear any properties we don't understand (aka everything else).
   DeviceState::Queue result;
   result.props = CLInfoType<CL_DEVICE_QUEUE_PROPERTIES>::Read(did) & mask;
   if (config.enable_profiling() || env::GetVar("PLAIDML_PROFILING_ENABLED").length() || ctx.is_logging_events() ||
-      VLOG_IS_ON(1)) {
+      VLOG_IS_ON(1) || max_trials > 1) {
     result.props |= CL_QUEUE_PROFILING_ENABLE;
   }
 
