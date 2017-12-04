@@ -15,7 +15,6 @@ plaidml_py_library(
     ],
     deps = [
         "//plaidml:py",
-        "//plaidml/event:filelog_py",
     ],
 )
 
