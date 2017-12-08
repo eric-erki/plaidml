@@ -37,7 +37,7 @@ class VirtualEnv(object):
             raise
         env = dict(os.environ)
         env['VIRTUAL_ENV'] = self._path
-        env['PATH'] = os.pathsep.join([self._venv_bin, os.getenv('PATH')])
+        env['PATH'] = os.pathsep.join([self._venv_bin, os.getenv('PATH', "")])
         return env
 
 
