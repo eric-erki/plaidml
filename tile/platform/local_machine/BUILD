@@ -194,6 +194,7 @@ plaidml_cc_library(
         ":placer",
         ":scheduler",
     ],
+    tags = ["windows_path_fail"]
 )
 
 plaidml_cc_test(
