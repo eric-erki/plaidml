@@ -16,10 +16,7 @@ WORKSPACE = "__BZL_WORKSPACE__"
 
 
 def _find_in_runfiles(logical_name):
-    key = logical_name
-    if key.startswith('external/'):
-        key = key[len('external/'):]
-    key = WORKSPACE + '/' + key
+    key = WORKSPACE + '/' + logical_name
     try:
         return _find_in_runfiles.manifest.get(key, logical_name)
     except AttributeError:
