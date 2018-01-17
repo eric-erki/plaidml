@@ -46,7 +46,7 @@ class VirtualEnv(object):
             hasher.update(arg)
         for requirement in requirements:
             with open(_find_in_runfiles(requirement)) as file_:
-                hasher.update(file_.read())
+                hasher.update(file_.read().encode())
         self._path = os.path.join(os.path.expanduser('~'), '.t2', 'venv', hasher.hexdigest())
 
         if platform.system() == 'Windows':
