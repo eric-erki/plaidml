@@ -306,6 +306,10 @@ class TestBackendOps(unittest.TestCase):
     def testBatchFlatten(self, b, x):
         return [b.batch_flatten(x)]
 
+    @opTest([[m(2, 4, 7)]])
+    def testFlatten(self, b, x):
+        return [b.flatten(x)]
+
     #TODO: Does not need to exist longterm
     @unittest.skip("Helper test for debugging testAddElements, not standalone")
     def testMicroAddElementsFail(self):
@@ -520,7 +524,8 @@ class TestBackendOps(unittest.TestCase):
     def testSqrt(self, b, x):
         return [b.sqrt(x)]
 
-    @opTest([[np.sqrt(m(5, 5, 10) + 2) - 3]], 1e-02, skip_theano=True)
+    @opTest([[np.sqrt(m(5, 5, 10) + 2) - 3],
+             [np.sin(m(4, 3, 2, 1, 6))]], 1e-02, skip_theano=True)
     def testSoftmax(self, b, x):
         return [-b.log(b.softmax(x))]
 
@@ -564,6 +569,44 @@ class TestBackendOps(unittest.TestCase):
     def testSparseCategoricalCrossentropy(self, b, x):
         smax = b.softmax(x)
         sbest = b.variable(np.array([[7, 8, 5], [9, 3, 8], [0, 7, 6]]))
+        return [
+            b.sparse_categorical_crossentropy(sbest, smax),
+            b.sparse_categorical_crossentropy(sbest, smax, from_logits=True)
+        ]
+
+    @opTest([[m(1, 3, 10)]], skip_theano=True, tol=0.01)
+    def testSparseCategoricalCrossentropyUnbalanced(self, b, x):
+        smax = b.softmax(x)
+        sbest = b.variable(np.array([[7, 8, 5]]))
+        return [
+            b.sparse_categorical_crossentropy(sbest, smax),
+            b.sparse_categorical_crossentropy(sbest, smax, from_logits=True)
+        ]
+
+    @opTest([[m(3, 10)]], skip_theano=True, tol=0.001)
+    def testSparseCategoricalCrossentropyShort(self, b, x):
+        smax = b.softmax(x)
+        sbest = b.variable(np.array([7, 8, 5]))
+        return [
+            b.sparse_categorical_crossentropy(sbest, smax),
+            b.sparse_categorical_crossentropy(sbest, smax, from_logits=True)
+        ]
+
+    @unittest.skip("TODO: Broken in TF until Keras 2.1.2 or later")
+    @opTest([[m(3, 3, 2, 10)]], skip_theano=True, tol=0.01)
+    def testSparseCategoricalCrossentropyLong(self, b, x):
+        smax = b.softmax(x)
+        sbest = b.variable(np.array([[[1,7], [2,8], [9,5]], [[4, 9], [0,3], [9,8]], [[0,0], [6,7], [6,6]]]))
+        return [
+            b.sparse_categorical_crossentropy(sbest, smax),
+            b.sparse_categorical_crossentropy(sbest, smax, from_logits=True)
+        ]
+
+    @unittest.skip("TODO: Broken in TF until Keras 2.1.2 or later")
+    @opTest([[m(3, 3, 2, 1, 10)]], skip_theano=True, tol=0.01)
+    def testSparseCategoricalCrossentropyXLong(self, b, x):
+        smax = b.softmax(x)
+        sbest = b.variable(np.array([[[[1],[7]], [[2],[8]], [[9],[5]]], [[[4], [9]], [[0],[3]], [[9],[8]]], [[[0],[0]], [[6],[7]], [[6],[6]]]]))
         return [
             b.sparse_categorical_crossentropy(sbest, smax),
             b.sparse_categorical_crossentropy(sbest, smax, from_logits=True)
@@ -957,6 +1000,13 @@ class TestBackendOps(unittest.TestCase):
         V = b.variable(np.array([[1.0, 2.0], [2.0, 7.0], [5.0, 6.0]]))
         I = b.variable(
             np.array([[0, 1, 1, 0], [0, 0, 0, 1], [1, 0, 1, 0]], dtype='int32'), dtype='int32')
+        return b.gather(V, I)
+
+    @compareForwardClose()
+    def testGatherWithA1Dim(self, b):
+        V = b.variable(np.array([[1.0, 2.0], [2.0, 7.0], [5.0, 6.0]]))
+        I = b.variable(
+            np.array([[0], [1], [0]], dtype='int32'), dtype='int32')
         return b.gather(V, I)
 
     @compareForwardClose()
