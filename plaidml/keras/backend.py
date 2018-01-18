@@ -177,6 +177,12 @@ def _plaidml_val(x, indent=0):
         if x.ident == 'slice' and x._inputs['I'].ident == 'shape' and isinstance(x.original_key, int):
             in_tensor = x._inputs['I']._inputs['T']
             key = x.original_key
+            if not isinstance(key, int):
+                raise ValueError("The output of shape can only be sliced using integers; received type '{}'".format(type(key)))
+            if key < -in_tensor.ndim or key >= in_tensor.ndim:
+                raise ValueError("Asked to get dimension {} of a tensor with only {} dimensions".format(key, in_tensor.ndim))
+            if key < 0:
+                key = key % in_tensor.ndim
             name = 'extract_shape{}'.format(key)
             f = """ function (I[{dims}]) -> (O) {{
                         O = N{key};
