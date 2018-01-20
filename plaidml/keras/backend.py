@@ -51,14 +51,14 @@ class PlaidMLKerasException(Exception):
 
 
 _dtypes = {
-    'float16': plaidml.DATA_FLOAT16,
-    'float32': plaidml.DATA_FLOAT32,
-    'float64': plaidml.DATA_FLOAT64,
-    'bool': plaidml.DATA_BOOLEAN,
-    'int32': plaidml.DATA_INT32,
-    'int64': plaidml.DATA_INT64,
-    'uint32': plaidml.DATA_UINT32,
-    'uint64': plaidml.DATA_UINT64,
+    'float16': plaidml.DType.FLOAT16,
+    'float32': plaidml.DType.FLOAT32,
+    'float64': plaidml.DType.FLOAT64,
+    'bool': plaidml.DType.BOOLEAN,
+    'int32': plaidml.DType.INT32,
+    'int64': plaidml.DType.INT64,
+    'uint32': plaidml.DType.UINT32,
+    'uint64': plaidml.DType.UINT64,
 }
 
 _in_train_phase = None  #Will be initialized on first use
