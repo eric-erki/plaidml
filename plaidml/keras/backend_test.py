@@ -264,6 +264,30 @@ class TestBackendOps(unittest.TestCase):
     def testPassthrough(self, b):
         return b.variable(m(3, 3))
 
+    @compareForwardExact(skip_tensorflow=True)
+    def testArgmax(self, b):
+        # We are using Theano style (keepdims), not TF style (not keepdims)
+        return b.equal(b.argmax(b.variable(m(3, 3))), b.argmax(b.variable(m(3, 3))))
+
+    @compareForwardExact(skip_tensorflow=True)
+    def testArgmaxUnequal(self, b):
+        # We are using Theano style (keepdims), not TF style (not keepdims)
+        x = b.variable(m(3, 2))
+        y = b.variable(np.array([[2, 4], [5, -1], [3, 0]]))
+        return b.equal(b.argmax(x, axis=0), b.argmax(y, axis=0))
+
+    @compareForwardExact(skip_tensorflow=True)
+    def testArgmin(self, b):
+        # We are using Theano style (keepdims), not TF style (not keepdims)
+        return b.equal(b.argmax(-b.variable(m(3, 3))), b.argmin(b.variable(m(3, 3))))
+
+    @compareForwardExact(skip_tensorflow=True)
+    def testArgminUnequal(self, b):
+        # We are using Theano style (keepdims), not TF style (not keepdims)
+        x = b.variable(m(3, 2))
+        y = b.variable(np.array([[2, 4], [5, -1], [3, 0]]))
+        return b.equal(b.argmin(x, axis=0), b.argmin(y, axis=0))
+
     @opTest([
         [m(3, 3), m(3, 3)],
         [m(2, 3, 4, 5), m(2, 3, 5, 2)],
@@ -808,6 +832,17 @@ class TestBackendOps(unittest.TestCase):
             b.pool2d(x, (3, 3), strides=(2, 2), pool_mode='max', padding='same')
         ]
 
+    @opTest(
+        [
+            [m(3, 3, 4, 5, 2)],
+            [m(1, 5, 4, 7, 1)],
+        ], skip_theano=True)
+    def testPool3D(self, b, x):
+        return [
+            b.pool3d(x, (1, 2, 2), strides=(2, 1, 2), pool_mode='max', padding='valid'),
+            b.pool3d(x, (2, 2, 3), strides=(2, 3, 1), pool_mode='avg', padding='same'),
+        ]
+
     @opTest([
         [m(1, 1, 60), (60,)],
         [m(4, 3, 70, 2), (14, 10, 6, 2)],
@@ -984,10 +1019,29 @@ class TestBackendOps(unittest.TestCase):
     def testVarSimple(self, b, x, ax=None, kd=False):
         return [b.var(x, axis=ax, keepdims=kd)]
 
+    @opTest(
+        [
+            [m(3, 4)],
+            [m(1, 5, 2)],
+            [m(7, 2), None, True],
+            [m(2, 1, 5, 7, 3), 4],
+        ], atol=1e-7)
+    def testStd(self, b, x, ax=None, kd=False):
+        return [b.std(x, axis=ax, keepdims=kd)]
+
     @opTest([[m(3, 3)]])
     def testSelfMult(self, b, x):
         A = x
         return [b.dot(A, A)]
+
+    @opTest(
+        [
+            [m(3, 4), 0],
+            [m(1, 3, 2, 4), [0, 2]],
+            [m(1, 2, 2, 2), 3],
+        ])
+    def testReverse(self, b, x, ax):
+        return [b.reverse(x, ax)]
 
     @unittest.skip("TODO(T1037): This test is not yet working")
     @opTest([[np.array([[1.0, 2.0], [2.0, 7.0], [5.0, 6.0]])]])

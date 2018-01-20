@@ -1038,7 +1038,8 @@ def argmax(x, axis=-1):
 
 
 def argmin(x, axis=-1):
-    _report_unimplemented('argmin')
+    # Do argmin(x) by computing argmax(-x)
+    return _Op('argmax', x.dtype, x.shape, None, OrderedDict([('I', -x), ('axis', axis)]), ['O'])
 
 
 def backend():
@@ -2369,7 +2370,13 @@ def pool2d(x, pool_size, strides=(1, 1), padding='valid', data_format=None, pool
 
 
 def pool3d(x, pool_size, strides=(1, 1, 1), padding='valid', data_format=None, pool_mode='max'):
-    _report_unimplemented('pool3d')
+    return pool(
+        x,
+        pool_size,
+        strides=strides,
+        padding=padding,
+        data_format=data_format,
+        pool_mode=pool_mode)
 
 
 def print_tensor(x, message=''):
@@ -2518,7 +2525,20 @@ def resize_volumes(x, depth_factor, height_factor, width_factor, data_format):
 
 
 def reverse(x, axes):
-    _report_unimplemented('reverse')
+    if isinstance(axes, int):
+        axes = [axes]
+    for axis in axes:
+        if not isinstance(axis, int):
+            raise ValueError("The axes parameter of reverse only accepts an integer or a list of integers, received {}".format(type(axis)))
+        if axis >= x.ndim or axis < -x.ndim:
+            raise ValueError("Invalid axis {} in reverse: target {} too short (ndim={})".format(axis, x, x.ndim))
+    axes = [a % x.ndim for a in axes]
+    dims = ", ".join("N{}".format(j) for j in range(x.ndim))
+    in_idxs = ", ".join("i{}".format(j) for j in range(x.ndim))
+    out_idxs = ", ".join(("N{j} - 1 - i{j}" if j in axes else "i{j}").format(j=j) for j in range(x.ndim))
+    f = """function (I[{dims}]) -> (O) {{\nO[{out_idxs}: {dims}] = =(I[{in_idxs}]);\n}}""".format(
+            dims=dims, out_idxs=out_idxs, in_idxs=in_idxs)
+    return _Op('reverse', x.dtype, x.shape, f, {'I': x}, ['O'])
 
 
 def reverse_gradient(x, coeff=1.0):
@@ -2679,7 +2699,7 @@ def stack(x, axis=0):
 
 
 def std(x, axis=None, keepdims=False):
-    _report_unimplemented('std')
+    return sqrt(var(x, axis=axis, keepdims=keepdims))
 
 
 def stop_gradient(variables):
