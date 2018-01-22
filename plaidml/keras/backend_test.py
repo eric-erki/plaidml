@@ -188,6 +188,17 @@ def opTest(in_data,
                 gfn = b.function(x, df, updates=[])
                 fr = f.eval()
                 gr = gfn([t for t in data if hasattr(t, 'shape')])
+                try:
+                    values = gr[0].values
+                    dense_shape = gr[0].dense_shape
+                    indices = gr[0].indices
+                    result = np.zeros(dense_shape)
+                    for i in indices:
+                        result[i] += values[i]
+                    gr[0] = result
+                except AttributeError:
+                    # This wasn't an IndexedSlices object, do nothing
+                    pass
                 if verbose:
                     print(b, fr, gr)
                 results.append((fr, gr))
@@ -1043,10 +1054,13 @@ class TestBackendOps(unittest.TestCase):
     def testReverse(self, b, x, ax):
         return [b.reverse(x, ax)]
 
-    @unittest.skip("TODO(T1037): This test is not yet working")
-    @opTest([[np.array([[1.0, 2.0], [2.0, 7.0], [5.0, 6.0]])]])
+    @opTest([[np.array([[1.0, 2.0], [2.0, 7.0], [5.0, 6.0]])],
+             [np.array([[[3., 2., 4.], [1., 0., -1.], [1.4, 2.5, 3.4], [2.4, 3.6, 4.4]],
+                        [[-3., 1.1, 4.1], [3.2, -0.4, -4.], [-1.5, 2.2, 3.99], [2.114, -3.2, -4.]],
+                        [[4.1, -1.2, .1234], [4.2, .943, 9.21], [43.4, 47.1, 22.], [0.0, -3434., -2.4]]])]])
     def testGather(self, b, v):
         I = b.variable(np.array([0, 2, 1, 0], dtype='int32'), dtype='int32')
+        I2 = b.variable(np.array([[2, 1], [0, 1], [1, 0], [2, 1], [0, 0]], dtype='int32'), dtype='int32')
         return [b.gather(v, I)]
 
     @compareForwardClose()

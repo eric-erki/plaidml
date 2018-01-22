@@ -723,6 +723,9 @@ static KernelList Compile(const Program& orig_prog, const ShapeMap& inputs, cons
         dop.f.params.push_back(sout);
         dop.f.params.push_back(vout);
       }
+      if (op.f.fn == "scatter") {
+        r.kernels.push_back(GenZero(vars.at(op.output).shape, op.output, "zero_" + next_kname()));
+      }
       GenSpecial(r, dop, vars, next_kname(), settings);
       continue;
     }
