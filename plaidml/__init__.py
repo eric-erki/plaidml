@@ -149,6 +149,7 @@ class _Library(plaidml.library.Library):
         else:
             libname = 'libplaidml.so'
         libpath = pkg_resources.resource_filename(__name__, libname)
+        libpath = os.getenv('PLAIDML_NATIVE_PATH', libpath)
         lib = ctypes.cdll.LoadLibrary(libpath)
 
         super(_Library, self).__init__(lib, logger=logger)
@@ -736,6 +737,7 @@ _DEVICE_DETAILS = 4
 
 _PROVIDER_DEVICES = 1
 
+
 class DType(enum.IntEnum):
     """Describes the type of a tensor element."""
     INVALID = 0
@@ -751,6 +753,7 @@ class DType(enum.IntEnum):
     FLOAT16 = 0x31
     FLOAT32 = 0x32
     FLOAT64 = 0x33
+
 
 _CTYPES = {
     DType.BOOLEAN: ctypes.c_bool,

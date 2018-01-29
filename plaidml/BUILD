@@ -23,7 +23,6 @@ exports_files(["requirements.txt"])
 plaidml_proto_library(
     name = "proto",
     srcs = ["plaidml.proto"],
-    visibility = ["//visibility:public"],
 )
 
 plaidml_cc_version(
@@ -220,7 +219,6 @@ plaidml_py_library(
         "//bzl:x64_windows": [":plaidml.dll"],
         "//conditions:default": [":libplaidml.so"],
     }),
-    visibility = ["//visibility:public"],
 )
 
 plaidml_py_test(
