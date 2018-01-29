@@ -779,6 +779,23 @@ class TestBackendOps(unittest.TestCase):
             b.conv2d_transpose(x, k, os, strides=st, padding=pd, data_format=df)
         ]
 
+    @opTest([[m(1, 3, 3, 1), m(1, 3, 3, 1) - 2]], skip_tensorflow=True, skip_theano=True)
+    def testDefractLong(self, b, x, k):
+        f = ('function (I[N, L0, L1, CI], K[LK0, LK1, CO, CI]) -> (O) {\n' +
+                '  O[n, x0, x1, co: 1, 5, 5, 1] = +(I[n, (x0 + k0 - 1)/2, (x1 + k1 - 1)/2, ci]' +
+                ' * K[2 - k0, 2 - k1, co, ci]);\n}')
+        return [b._Op('defract_test', x.dtype, (1, 5, 5, 1), f, OrderedDict([('I', x), ('K', k)]), ['O'])]
+
+    @opTest([[m(3), m(3) + 1]], skip_tensorflow=True, skip_theano=True)
+    def testDefract(self, b, x, k):
+        f = 'function(I[N], K[M]) -> (O) {\n  O[x: 5] = +(I[(x - k + 1)/2] * K[k]);\n}'
+        return [b._Op('defract_test', x.dtype, (5, ), f, OrderedDict([('I', x), ('K', k)]), ['O'])]
+
+    @opTest([[m(3)]], skip_tensorflow=True, skip_theano=True)
+    def testDefractShort(self, b, x):
+        f = 'function(I[N]) -> (O) {\n  O[x: 6] = +(I[(x - 1)/2]);\n}'
+        return [b._Op('defract_test', x.dtype, (6, ), f, OrderedDict([('I', x)]), ['O'])]
+
     @unittest.skip("TODO(T1046): This case is bugged in Keras 2.0.8 TF")
     @opTest(
         [_conv_inp(IN=1, IC=1, OC=1, IS=[1, 6], KS=[1, 1], data_format='channels_last')],
