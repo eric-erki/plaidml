@@ -770,6 +770,17 @@ _CTYPES = {
     DType.FLOAT64: ctypes.c_double
 }
 
+_NP_TYPES = {
+    DType.FLOAT16: 'float16',
+    DType.FLOAT32: 'float32',
+    DType.FLOAT64: 'float64',
+    DType.BOOLEAN: 'bool',
+    DType.INT32: 'int32',
+    DType.INT64: 'int64',
+    DType.UINT32: 'uint32',
+    DType.UINT64: 'uint64',
+}
+
 
 def _internal_set_vlog(l):
     _lib()._internal_set_vlog(l)
@@ -1038,7 +1049,10 @@ def devices(ctx, limit=1, return_all=False):
         if len(enumerator.valid_devs) == 0:
             _record_usage(None, config_source, enumerator.valid_devs, enumerator.invalid_devs,
                           "ERR_NO_DEVICES", True)
-            raise exceptions.PlaidMLError("No devices found. Please run plaidml-setup.")
+            available = '\n'.join(['  {}'.format(x.id) for x in enumerator.invalid_devs])
+            raise exceptions.PlaidMLError(
+                "No devices found. Please run plaidml-setup. The following devices are available:\n{}".
+                format(available))
         if len(enumerator.valid_devs) > limit:
             _record_usage(None, config_source, enumerator.valid_devs, enumerator.invalid_devs,
                           "ERR_TOO_MANY_DEVICES", True)
@@ -1185,6 +1199,7 @@ class Tensor(_Var):
 
     def __init__(self, dev, shape, copy_buffer=False):
         self._shape = shape
+        self._ndarray = None
         if copy_buffer:
             self._buffer = copy_buffer
         else:
@@ -1216,11 +1231,13 @@ class Tensor(_Var):
         _lib().plaidml_free_mapping(mapping)
 
     def as_ndarray(self, ctx):
-        mapping = _lib().plaidml_map_buffer_current(self.buffer,
-                                                    ctypes.cast(None, _MAP_BUFFER_FUNCTYPE), None)
-        return _View(ctx, mapping, self.shape.dtype, self.shape.ctype,
-                     _lib().plaidml_get_shape_element_count(self.shape), self.shape,
-                     self).as_ndarray()
+        if self._ndarray is None:
+            self._ndarray = np.ndarray(
+                tuple(dim.size for dim in self.shape.dimensions),
+                dtype=_NP_TYPES[self.shape.dtype])
+        with self.mmap_current() as view:
+            view.copy_to_ndarray(self._ndarray)
+        return self._ndarray
 
 
 class Integer(_Var):
