@@ -1,11 +1,10 @@
 // Copyright 2017, Vertex.AI.
 
-#include "tile/hal/opencl/exprtype.h"
+#include "tile/lang/exprtype.h"
 
 namespace vertexai {
 namespace tile {
-namespace hal {
-namespace opencl {
+namespace lang {
 namespace {
 
 // Returns the Plaid arithmetic conversion rank of a type.
@@ -49,14 +48,14 @@ unsigned Rank(sem::Type ty) {
 
 }  // namespace
 
-sem::Type ExprType::TypeOf(const lang::Scope<sem::Type>* scope, bool cl_khr_fp16, const sem::ExprPtr& expr) {
-  ExprType et{scope, cl_khr_fp16};
+sem::Type ExprType::TypeOf(const lang::Scope<sem::Type>* scope, bool enable_fp16, const sem::ExprPtr& expr) {
+  ExprType et{scope, enable_fp16};
   expr->Accept(et);
   return et.ty_;
 }
 
-sem::Type ExprType::TypeOf(const lang::Scope<sem::Type>* scope, bool cl_khr_fp16, const sem::LValPtr& lvalue) {
-  ExprType et{scope, cl_khr_fp16};
+sem::Type ExprType::TypeOf(const lang::Scope<sem::Type>* scope, bool enable_fp16, const sem::LValPtr& lvalue) {
+  ExprType et{scope, enable_fp16};
   lvalue->Accept(et);
   return et.ty_;
 }
@@ -144,7 +143,7 @@ void ExprType::Visit(const sem::LookupLVal& n) {
 
 void ExprType::Visit(const sem::LoadExpr& n) {
   n.inner->Accept(*this);
-  if (ty_.dtype == lang::DataType::FLOAT16 && !cl_khr_fp16_) {
+  if (ty_.dtype == lang::DataType::FLOAT16 && !enable_fp16_) {
     // No fp16 support => automatically promote loads to 32-bit.
     ty_.dtype = lang::DataType::FLOAT32;
   }
@@ -253,10 +252,10 @@ void ExprType::Visit(const sem::ReturnStmt&) { throw std::logic_error{"Unexpecte
 
 void ExprType::Visit(const sem::Function&) { throw std::logic_error{"Unexpected expression component"}; }
 
-ExprType::ExprType(const lang::Scope<sem::Type>* scope, bool cl_khr_fp16) : scope_{scope}, cl_khr_fp16_{cl_khr_fp16} {}
+ExprType::ExprType(const lang::Scope<sem::Type>* scope, bool enable_fp16) : scope_{scope}, enable_fp16_{enable_fp16} {}
 
 sem::Type ExprType::TypeOf(const sem::ExprPtr& expr) {
-  ExprType et{scope_, cl_khr_fp16_};
+  ExprType et{scope_, enable_fp16_};
   expr->Accept(et);
   return et.ty_;
 }
@@ -294,7 +293,6 @@ void ExprType::AdjustLogicOpResult() {
   }
 }
 
-}  // namespace opencl
-}  // namespace hal
+}  // namespace lang
 }  // namespace tile
 }  // namespace vertexai

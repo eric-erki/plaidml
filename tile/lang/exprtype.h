@@ -9,13 +9,7 @@
 
 namespace vertexai {
 namespace tile {
-namespace hal {
-namespace opencl {
-
-// TODO: Consider whether this logic belongs in a more general
-// location, since it doesn't actually make use of OpenCL types or the
-// OpenCL type hierarchy, with the exception of whether the system
-// supports half-width floats.
+namespace lang {
 
 // Compute the lowest common type for a set of types.
 sem::Type Promote(const std::vector<sem::Type>& types);
@@ -23,9 +17,9 @@ sem::Type Promote(const std::vector<sem::Type>& types);
 // Analyzes expression types.
 class ExprType final : public sem::Visitor {
  public:
-  static sem::Type TypeOf(const lang::Scope<sem::Type>* scope, bool cl_khr_fp16, const sem::ExprPtr& expr);
+  static sem::Type TypeOf(const lang::Scope<sem::Type>* scope, bool enable_fp16, const sem::ExprPtr& expr);
 
-  static sem::Type TypeOf(const lang::Scope<sem::Type>* scope, bool cl_khr_fp16, const sem::LValPtr& lvalue);
+  static sem::Type TypeOf(const lang::Scope<sem::Type>* scope, bool enable_fp16, const sem::LValPtr& lvalue);
 
   void Visit(const sem::IntConst&) final;
   void Visit(const sem::FloatConst&) final;
@@ -52,18 +46,17 @@ class ExprType final : public sem::Visitor {
   void Visit(const sem::Function&) final;
 
  private:
-  ExprType(const lang::Scope<sem::Type>* scope, bool cl_khr_fp16);
+  ExprType(const lang::Scope<sem::Type>* scope, bool enable_fp16);
 
   sem::Type TypeOf(const sem::ExprPtr& expr);
 
   void AdjustLogicOpResult();
 
   const lang::Scope<sem::Type>* scope_;
-  bool cl_khr_fp16_;
+  bool enable_fp16_;
   sem::Type ty_;
 };
 
-}  // namespace opencl
-}  // namespace hal
+}  // namespace lang
 }  // namespace tile
 }  // namespace vertexai

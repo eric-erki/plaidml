@@ -3,7 +3,7 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
-#include "tile/hal/opencl/exprtype.h"
+#include "tile/lang/exprtype.h"
 #include "tile/lang/sembuilder.h"
 
 using ::testing::Eq;
@@ -11,8 +11,7 @@ using ::testing::Values;
 
 namespace vertexai {
 namespace tile {
-namespace hal {
-namespace opencl {
+namespace lang {
 namespace {
 
 using namespace sem::builder;  // NOLINT
@@ -33,9 +32,9 @@ class ExprTypeTest : public ::testing::Test {
     scope_.Bind("val_int8", sem::Type{sem::Type::VALUE, lang::DataType::INT8});
   }
 
-  sem::Type TypeOf(const sem::ExprPtr& expr) { return ExprType::TypeOf(&scope_, cl_khr_fp16_, expr); }
+  sem::Type TypeOf(const sem::ExprPtr& expr) { return ExprType::TypeOf(&scope_, enable_fp16_, expr); }
 
-  bool cl_khr_fp16_ = false;
+  bool enable_fp16_ = false;
   lang::Scope<sem::Type> scope_;
 };
 
@@ -84,7 +83,6 @@ TEST_F(ExprTypeTest, SmallConstCompareIndex) {
 }
 
 }  // namespace
-}  // namespace opencl
-}  // namespace hal
+}  // namespace lang
 }  // namespace tile
 }  // namespace vertexai
