@@ -212,8 +212,10 @@ plaidml_py_library(
         "context.py",
         "exceptions.py",
         "library.py",
+        "op.py",
         "plaidml_setup.py",
         "settings.py",
+        "tile.py",
     ],
     data = [":configs"] + select({
         "//bzl:x64_windows": [":plaidml.dll"],
@@ -233,6 +235,16 @@ plaidml_py_test(
     name = "py_plaidml_test",
     srcs = ["plaidml_test.py"],
     main = "plaidml_test.py",
+    deps = [
+        ":py",
+        "//testing:plaidml_py",
+    ],
+)
+
+plaidml_py_test(
+    name = "py_tile_test",
+    srcs = ["tile_test.py"],
+    main = "tile_test.py",
     deps = [
         ":py",
         "//testing:plaidml_py",

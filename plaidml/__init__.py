@@ -10,6 +10,7 @@ PlaidML
 =======
 A framework for making deep learning work everywhere.
 
+
 PlaidML is a multi-language acceleration framework that:
 * Enables practitioners to deploy high-performance neural nets on any device
 * Allows hardware developers to quickly integrate with high-level frameworks
@@ -34,6 +35,9 @@ Higher-level APIs
 -----------------
 plaidml.keras - Integration with the [Keras](https://keras.io/) machine learning framework.
 This is useful for easily describing and training neural networks.
+
+plaidml.tile - Utilities for building up composite TILE functions from
+high-level operation semantics.
 """
 
 from __future__ import print_function
@@ -711,8 +715,6 @@ class _Library(plaidml.library.Library):
             return None
         if func == self.plaidml_map_buffer_current and args[2]:
             return None
-        if func == self.plaidml_writeback_mapping and args[2]:
-            return None
         self.raise_last_status()
 
 
@@ -1053,7 +1055,7 @@ def devices(ctx, limit=1, return_all=False):
             raise exceptions.PlaidMLError(
                 "No devices found. Please run plaidml-setup. The following devices are available:\n{}".
                 format(available))
-        if len(enumerator.valid_devs) > limit:
+        if limit and len(enumerator.valid_devs) > limit:
             _record_usage(None, config_source, enumerator.valid_devs, enumerator.invalid_devs,
                           "ERR_TOO_MANY_DEVICES", True)
             raise exceptions.PlaidMLError("Too many devices configured. Please run plaidml-setup.")
@@ -1071,8 +1073,8 @@ class _Buffer(object):
         dev._register_buffer(self)
 
 
-class _Var(object):
-
+class Var(object):
+    """An abstract variable."""
     def __init__(self, v):
         self._as_parameter_ = v
         self._free = _lib().plaidml_free_var
@@ -1195,7 +1197,7 @@ class _View(object):
             yield self[idx]
 
 
-class Tensor(_Var):
+class Tensor(Var):
 
     def __init__(self, dev, shape, copy_buffer=False):
         self._shape = shape
@@ -1240,13 +1242,13 @@ class Tensor(_Var):
         return self._ndarray
 
 
-class Integer(_Var):
+class Integer(Var):
 
     def __init__(self, value):
         super(Integer, self).__init__(_lib().plaidml_alloc_int64(value))
 
 
-class Real(_Var):
+class Real(Var):
 
     def __init__(self, value):
         super(Real, self).__init__(_lib().plaidml_alloc_real(value))
@@ -1274,7 +1276,7 @@ class _Shape(object):
 
     @property
     def dtype(self):
-        return self._dtype
+        return DType(self._dtype)
 
     @property
     def offset(self, off):
@@ -1310,26 +1312,26 @@ class Shape(_Shape):
             _lib().plaidml_add_dimension(ctx, self, arg, int(stride))
 
 
-class Placeholder(_Var):
+class Placeholder(Var):
 
     def __init__(self, dims):
         super(Placeholder, self).__init__(_lib().plaidml_alloc_placeholder(dims))
 
 
 def _as_plaidml_var(value):
-    if isinstance(value, _Var):
+    if isinstance(value, Var):
         return value
     if sys.version_info.major < 3 and isinstance(value, long):
-        return _Var(_lib().plaidml_alloc_int64(value))
+        return Var(_lib().plaidml_alloc_int64(value))
     if isinstance(value, int):
-        return _Var(_lib().plaidml_alloc_int64(value))
+        return Var(_lib().plaidml_alloc_int64(value))
     if isinstance(value, float) or value.dtype.name == 'float32':
-        return _Var(_lib().plaidml_alloc_real(value))
+        return Var(_lib().plaidml_alloc_real(value))
     if value.shape == ():  # This should mean we have a 0-D numpy array
         if value.dtype.name == 'int_':
-            return _Var(_lib().plaidml_alloc_int64(value))
+            return Var(_lib().plaidml_alloc_int64(value))
         if value.dtype.name == 'float_' or value.dtype.name == 'float32':
-            return _Var(_lib().plaidml_alloc_real(value))
+            return Var(_lib().plaidml_alloc_real(value))
         else:
             raise plaidml.exceptions.InvalidArgument('Unexpected type in array: ' +
                                                      value.dtype.name)
@@ -1357,7 +1359,7 @@ class Applier(object):
         return _Shape(self._ctx, _lib().plaidml_apply_alloc_output_shape(self, name.encode()))
 
     def add_output(self, name):
-        return _Var(_lib().plaidml_apply_alloc_output(self, name.encode()))
+        return Var(_lib().plaidml_apply_alloc_output(self, name.encode()))
 
 
 class Composer(object):
@@ -1434,7 +1436,7 @@ class Invocation(object):
 def gradients(loss, variables):
     g = _lib().plaidml_alloc_gradient(loss)
     try:
-        return [_Var(_lib().plaidml_compute_grad_wrt(g, var)) for var in variables]
+        return [Var(_lib().plaidml_compute_grad_wrt(g, var)) for var in variables]
     finally:
         _lib().plaidml_free_gradient(g)
 

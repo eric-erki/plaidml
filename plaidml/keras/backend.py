@@ -26,6 +26,7 @@ import numpy as np
 import operator
 import os
 import plaidml
+import plaidml.tile as tile
 import scipy.stats
 import six
 import sys
@@ -951,7 +952,7 @@ class _Function(object):
 
         c = plaidml.Composer()
         for (name, val) in zip(self._input_names, inputs):
-            if isinstance(_plaidml_val(val), plaidml._Var):
+            if isinstance(_plaidml_val(val), plaidml.Var):
                 if isinstance(_plaidml_val(val), plaidml.Placeholder):
                     c.add_input(name, _plaidml_val(val))
                     self._input_types[name] = val.dtype
