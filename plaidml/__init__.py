@@ -833,7 +833,7 @@ class _Function(object):
             self._free(self)
 
     def save(self, filename):
-        _lib().plaidml_save_function(self._as_parameter_, filename)
+        _lib().plaidml_save_function(self._as_parameter_, filename.encode())
 
 
 class Function(_Function):
@@ -856,7 +856,7 @@ class Function(_Function):
 
 
 def load_function(ctx, device, filename):
-    return _Function(_lib().plaidml_load_function(ctx, device._as_parameter_, filename))
+    return _Function(_lib().plaidml_load_function(ctx, device._as_parameter_, filename.encode()))
 
 
 class _DeviceConfig(object):
