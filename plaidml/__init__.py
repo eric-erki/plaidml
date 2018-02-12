@@ -193,7 +193,7 @@ class _Library(plaidml.library.Library):
 
         # PLAIDML_API void plaidml_close_device(plaidml_device* device);
         self.plaidml_close_device = lib.plaidml_close_device
-        self.plaidml_close_device.argypes = [
+        self.plaidml_close_device.argtypes = [
             ctypes.POINTER(_C_Device)  # plaidml_device* device
         ]
 
