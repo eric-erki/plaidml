@@ -772,6 +772,7 @@ _CTYPES = {
     DType.FLOAT64: ctypes.c_double
 }
 
+
 _NP_TYPES = {
     DType.FLOAT16: 'float16',
     DType.FLOAT32: 'float32',
