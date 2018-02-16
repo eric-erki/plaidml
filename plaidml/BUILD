@@ -304,3 +304,20 @@ plaidml_py_wheel(
     }),
     python = "py2.py3",
 )
+
+# HACK: pex doesn't yet support manylinux wheels.
+plaidml_py_wheel(
+    name = "wheel_linux_x86_64",
+    srcs = [
+        ":configs",
+        ":py",
+        "//plaidml:libplaidml.so",
+    ],
+    config = ":setup.cfg",
+    console_scripts = [
+        "'plaidml-setup = plaidml.plaidml_setup:main'",
+    ],
+    package = "plaidml",
+    platform = "linux_x86_64",
+    python = "py2.py3",
+)
