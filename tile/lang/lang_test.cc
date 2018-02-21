@@ -3,7 +3,6 @@
 #include "tile/lang/bound.h"
 #include "tile/lang/compile.h"
 #include "tile/lang/defract.h"
-#include "tile/lang/emitc.h"
 #include "tile/lang/flat.h"
 #include "tile/lang/gen_contract.h"
 #include "tile/lang/generate.h"
@@ -14,6 +13,7 @@
 #include "tile/lang/reduce.h"
 #include "tile/lang/replace.h"
 #include "tile/lang/sembuilder.h"
+#include "tile/lang/semprinter.h"
 #include "tile/lang/semtree.h"
 #include "tile/lang/shape.h"
 #include "tile/lang/sym_poly.h"
@@ -384,8 +384,7 @@ TEST_CASE("Functions", "[compile]") {
   inputs.emplace("x", TensorShape{DataType::FLOAT32, {{128L, 100UL}, {1L, 100UL}}});
   outputs.emplace("y", TensorShape{DataType::FLOAT32, {{128L, 100UL}, {1L, 100UL}}});
   KernelList result = GenerateProgram(p, inputs, outputs, TestGPU());
-  EmitDebug emit;
-  emit.Visit(*result.kernels[0].kfunc);
+  sem::Print emit(*result.kernels[0].kfunc);
   std::string code = emit.str();
   REQUIRE(code.find("exp") != std::string::npos);
 }
@@ -511,8 +510,7 @@ TEST_CASE("Ast", "[ast]") {
                       }),
                       _Return(r)});
 
-  EmitDebug emit;
-  emit.Visit(*f);
+  sem::Print emit(*f);
   IVLOG(1, "Code:\n" << emit.str());
 }
 
@@ -784,9 +782,8 @@ TEST_CASE("CombineConvolutionAndRelu", "[emit]") {
   outputs.emplace("A", SimpleShape(DataType::FLOAT32, {10, 10}));
   auto klist = GenerateProgram(prog, inputs, outputs, TestGPU(), "ID");
   if (VLOG_IS_ON(1)) {
-    for (const auto& kinfo : klist.kernels) {
-      EmitDebug emit;
-      emit.Visit(*kinfo.kfunc);
+    for (const auto &kinfo : klist.kernels) {
+      sem::Print emit(*kinfo.kfunc);
       VLOG(1) << "Got kernel: " << emit.str();
     }
   }
@@ -811,8 +808,7 @@ TEST_CASE("Tupleism", "[tuple]") {
   auto klist = GenerateProgram(prog, inputs, outputs, TestGPU(), "ID");
   if (VLOG_IS_ON(1)) {
     for (const auto& kinfo : klist.kernels) {
-      EmitDebug emit;
-      emit.Visit(*kinfo.kfunc);
+      sem::Print emit(*kinfo.kfunc);
       VLOG(1) << "Got kernel: " << emit.str();
     }
   }

@@ -19,6 +19,7 @@
 #include "tile/hal/opencl/cl_opt.h"
 #include "tile/hal/opencl/emitocl.h"
 #include "tile/hal/opencl/library.h"
+#include "tile/lang/semprinter.h"
 
 namespace fs = boost::filesystem;
 
@@ -217,8 +218,7 @@ boost::future<std::unique_ptr<hal::Library>> Compiler::Build(const context::Cont
         }
       } else {
         if (VLOG_IS_ON(4)) {
-          lang::EmitDebug emit_debug;
-          emit_debug.Visit(*ki.kfunc);
+          sem::Print emit_debug(*ki.kfunc);
           VLOG(4) << "Generic debug kernel:";
           VLOG(4) << ki.comments;
           VLOG(4) << emit_debug.str();

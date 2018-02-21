@@ -8,3 +8,4 @@ local_repository(
 
 load("//bzl:workspace.bzl", "plaidml_workspace")
 plaidml_workspace()
+

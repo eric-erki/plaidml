@@ -4,9 +4,29 @@
     "hals": [
       {
         "@type": "type.vertex.ai/vertexai.tile.hal.opencl.proto.Driver"
-      }
+      },
+      {
+        "@type": "type.vertex.ai/vertexai.tile.hal.cpu.proto.Driver"
+      },
     ],
     "hardware_configs": [
+      {
+        "description": "CPU (via LLVM) settings",
+        "sel": {
+          "and": {
+            "sel": [
+              { "name_regex": "CPU" },
+              { "vendor_regex": "CPU" }
+            ]
+          }
+        },
+        "settings": {
+          "vec_size": 16,
+          "mem_width": 64,
+          "use_global": false,
+          "max_regs": 8192,
+        }
+      },
       {
         "description": "Apple AMD config",
         "sel": {

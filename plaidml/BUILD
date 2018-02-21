@@ -48,6 +48,7 @@ plaidml_cc_library(
         "//plaidml/base",
         "//tile/base",
         "//tile/base:program_cache",
+        "//tile/hal/cpu",
         "//tile/hal/opencl",
         "//tile/platform/local_machine",
         "//tile/proto:proto_cc",

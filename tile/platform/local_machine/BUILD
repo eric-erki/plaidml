@@ -68,6 +68,7 @@ plaidml_cc_test(
         "//plaidml:proto_cc",
         "//testing:plaidml_config",
         "//tile/base:platform_test",
+        "//tile/hal/cpu",
         "//tile/hal/opencl",
     ],
 )

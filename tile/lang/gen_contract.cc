@@ -311,7 +311,9 @@ KernelInfo GenContract(const string& kname, const DirectSettings& settings, cons
       if (op.comb_op != CombinationOp::COND) {
         throw std::runtime_error("Invalid three input combination op");
       }
-      pre_agg = _Cast(type, _Cond(_("val1") == _("val2"), _("val3"), _Const(0)));
+      sem::ExprPtr cast3 = _Cast(type, _("val3"));
+      sem::ExprPtr castZero = _Cast(type, _Const(0));
+      pre_agg = _Cond(_("val1") == _("val2"), cast3, castZero);
     }
     // Aggregate
     auto agg_idx = _Declare(fast_inner_block, {sem::Type::INDEX}, "agg_idx", out_plan.regIndex());
