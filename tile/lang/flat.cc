@@ -120,6 +120,12 @@ FlatContraction Flatten(const Contraction& c, const std::vector<TensorShape>& sh
           if (bounds[kvp.first].min == bounds[kvp.first].max) {
             // A variable that takes a single value gets merged into the offset
             offset_coeff += bounds[kvp.first].min * kvp.second;
+            // It also must be merged into any constraints
+            for (auto cons = new_cons.begin(); cons != new_cons.end(); ++cons) {
+              cons->poly.substitute(kvp.first, Polynomial(bounds[kvp.first].min));
+            }
+            IVLOG(5, "New constraints after replacing " << kvp.first << " with constant "
+                << bounds[kvp.first].min << ": " << new_cons);
           } else {
             // Add a new value if it's not a const and has a real range
             index_names.insert(kvp.first);
