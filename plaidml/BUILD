@@ -62,7 +62,7 @@ plaidml_cc_library(
 plaidml_cc_binary(
     name = "libplaidml.so",
     srcs = select({
-        "//bzl:x64_windows": ["dummy.cc"],  # Work around for https://github.com/bazelbuild/bazel/issues/4003
+        "@toolchain//:windows_x86_64": ["dummy.cc"],  # Work around for https://github.com/bazelbuild/bazel/issues/4003
         "//conditions:default": [],
     }),
     linkshared = 1,
@@ -74,7 +74,7 @@ plaidml_cc_binary(
 plaidml_cc_binary(
     name = "plaidml.dll",
     srcs = select({
-        "//bzl:x64_windows": ["dummy.cc"],  # Work around for https://github.com/bazelbuild/bazel/issues/4003
+        "@toolchain//:windows_x86_64": ["dummy.cc"],  # Work around for https://github.com/bazelbuild/bazel/issues/4003
         "//conditions:default": [],
     }),
     linkshared = 1,
@@ -219,7 +219,7 @@ plaidml_py_library(
         "tile.py",
     ],
     data = [":configs"] + select({
-        "//bzl:x64_windows": [":plaidml.dll"],
+        "@toolchain//:windows_x86_64": [":plaidml.dll"],
         "//conditions:default": [":libplaidml.so"],
     }),
 )
@@ -289,7 +289,7 @@ plaidml_py_wheel(
         ":py",
         ":configs",
     ] + select({
-        "//bzl:x64_windows": ["//plaidml:plaidml.dll"],
+        "@toolchain//:windows_x86_64": ["//plaidml:plaidml.dll"],
         "//conditions:default": ["//plaidml:libplaidml.so"],
     }),
     config = ":setup.cfg",
@@ -298,9 +298,9 @@ plaidml_py_wheel(
     ],
     package = "plaidml",
     platform = select({
-        "//bzl:arm7-ubuntu-14.04": "linux_armv7l",
-        "//bzl:darwin": "macosx_10_10_x86_64",
-        "//bzl:x64_windows": "win_amd64",
+        "@toolchain//:linux_arm_32v7": "linux_armv7l",
+        "@toolchain//:macos_x86_64": "macosx_10_10_x86_64",
+        "@toolchain//:windows_x86_64": "win_amd64",
         "//conditions:default": "manylinux1_x86_64",
     }),
     python = "py2.py3",

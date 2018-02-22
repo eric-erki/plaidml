@@ -1,7 +1,7 @@
 cc_library(
     name = "llvm",
     srcs = select({
-        "//bzl:x64-ubuntu-14.04": ["x64-ubuntu-14.04/libllvm.a"],
+        "@toolchain//:linux_x86_64": ["linux_x86_64/libllvm.a"],
         "//conditions:default": ["x64linux/libllvm.a"],
     }),
     tags = ["llvm"],

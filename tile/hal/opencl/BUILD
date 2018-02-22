@@ -67,7 +67,7 @@ plaidml_cc_library(
         "zero_kernel.cc",
         "zero_kernel.h",
     ] + select({
-        "//bzl:darwin": OPENCL_1_0_IMPL,
+        "@toolchain//:macos_x86_64": OPENCL_1_0_IMPL,
         "//conditions:default": OPENCL_2_0_IMPL,
     }),
     hdrs = [
@@ -75,13 +75,13 @@ plaidml_cc_library(
         "info.h",
         "opencl.h",
     ],
-    copts = select({
-        "//bzl:arm7-ubuntu-14.04": [],
-        "//bzl:x64_windows": [],
-        "//conditions:default": ["-Wno-ignored-attributes"],
-    }),
+    # copts = select({
+    #     "@toolchain//:linux_arm_32v7": [],
+    #     "@toolchain//:windows_x86_64": [],
+    #     "//conditions:default": ["-Wno-ignored-attributes"],
+    # }),
     linkopts = select({
-        "//bzl:darwin": [
+        "@toolchain//:macos_x86_64": [
             "-framework OpenCL",
         ],
         "//conditions:default": [],
@@ -99,7 +99,7 @@ plaidml_cc_library(
         "//tile/proto:proto_cc",
         "//tile/proto:support",
     ] + select({
-        "//bzl:darwin": [],
+        "@toolchain//:macos_x86_64": [],
         "//conditions:default": [
             "@opencl_icd_loader_repo//:lib",
         ],

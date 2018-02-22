@@ -10,39 +10,32 @@ GENFILES = [
     OUT_DIR + "Support/DataTypes.h",
 ]
 
-config_setting(
-    name = "arm7-linux",
-    values = {"cpu": "arm7-linux"},
-    visibility = ["//visibility:public"],
-)
-
-config_setting(
-    name = "x64_windows",
-    values = {"cpu": "x64_windows"},
-    visibility = ["//visibility:public"],
-)
-
-config_setting(
-    name = "darwin",
-    values = {"cpu": "darwin"},
-    visibility = ["//visibility:public"],
-)
-
 # Local GenRule to configure llvm
 genrule(
     name = "configure",
     srcs = ["CMakeLists.txt"],
     outs = GENFILES,
     cmd = select({
-        "//:arm7-linux": "cmake -B$(@D) -H$$(dirname $(location //:CMakeLists.txt)) " +
-                         "-DCMAKE_CROSSCOMPILING=True " +
-                         "-DLLVM_DEFAULT_TARGET_TRIPLE=arm-linux-gnueabihf " +
-                         "-DLLVM_ENABLE_TERMINFO=OFF ",
-        "//:darwin": "cmake -B$(@D) -H$$(dirname $(location //:CMakeLists.txt)) " +
-                     "-DLLVM_ENABLE_TERMINFO=OFF " +
-                     "-DHAVE_LIBEDIT=0 ",
-        "//conditions:default": "cmake -B$(@D) -H$$(dirname $(location //:CMakeLists.txt)) " +
-                                "-DLLVM_ENABLE_TERMINFO=OFF ",
+        "@toolchain//:linux_arm_32v7": """
+cmake -B$(@D) -H$$(dirname $(location //:CMakeLists.txt)) \
+    -DCMAKE_CROSSCOMPILING=True \
+    -DLLVM_DEFAULT_TARGET_TRIPLE=arm-linux-gnueabihf \
+    -DLLVM_ENABLE_TERMINFO=OFF
+""",
+        "@toolchain//:linux_arm_64v8": """
+cmake -B$(@D) -H$$(dirname $(location //:CMakeLists.txt)) \
+    -DCMAKE_CROSSCOMPILING=True \
+    -DLLVM_DEFAULT_TARGET_TRIPLE=aarch64-linux-gnueabi \
+    -DLLVM_ENABLE_TERMINFO=OFF
+""",
+        "@toolchain//:macos_x86_64": """
+        cmake -B$(@D) -H$$(dirname $(location //:CMakeLists.txt)) \
+    -DLLVM_ENABLE_TERMINFO=OFF \
+    -DHAVE_LIBEDIT=0
+""",
+        "//conditions:default": """
+cmake -B$(@D) -H$$(dirname $(location //:CMakeLists.txt)) -DLLVM_ENABLE_TERMINFO=OFF
+""",
     }),
     local = True,
 )
@@ -458,9 +451,9 @@ EOF
 )
 
 PLATFORM_COPTS = select({
-    ":darwin": [
+    "@toolchain//:macos_x86_64": [
         "-D__STDC_LIMIT_MACROS",
-        "-D__STDC_CONSTANT_MACROS"
+        "-D__STDC_CONSTANT_MACROS",
     ],
     "//conditions:default": ["-std=c++1y"],
 })
@@ -493,7 +486,7 @@ cc_library(
         ":include",
     ],
     linkopts = select({
-        ":x64_windows": [],
+        "@toolchain//:windows_x86_64": [],
         "//conditions:default": [
             "-lpthread",
             "-ldl",
@@ -525,7 +518,6 @@ cc_binary(
     ],
     deps = [":base"],
 )
-
 
 TARGET_INCLUDES = [[
     "-iquote",
@@ -568,12 +560,12 @@ cc_library(
         "-iquote",
         "$(GENDIR)/external/llvm_archive/lib/IR",
     ] + PLATFORM_COPTS + select({
-        ":darwin": ["-std=c++14"],
-        "//conditions:default": [],
+        "@toolchain//:macos_x86_64": ["-std=c++14"],
+        "//conditions:default": ["-std=c++1y"],
     }),
     includes = ["include"],
     linkopts = select({
-        ":x64_windows": [],
+        "@toolchain//:windows_x86_64": [],
         "//conditions:default": ["-lpthread"],
     }),
     deps = [":base"],
@@ -607,8 +599,8 @@ cc_library(
         "-iquote",
         "$(GENDIR)/external/llvm_archive/lib/IR",
     ] + PLATFORM_COPTS + select({
-       ":darwin": ["-std=c++14"],
-       "//conditions:default": [],
+        "@toolchain//:macos_x86_64": ["-std=c++14"],
+        "//conditions:default": ["-std=c++1y"],
     }),
     includes = ["include"],
     deps = [":base"],

@@ -53,11 +53,12 @@ plaidml_cc_library(
         "-D__STDC_LIMIT_MACROS",
         "-D__STDC_CONSTANT_MACROS",
     ] + select({
-        "//bzl:arm7-ubuntu-14.04": [],
+        "@toolchain//:linux_arm_32v7": [],
+        "@toolchain//:linux_arm_64v8": [],
         "//conditions:default": ["-DENABLE_CPU_DEVICE"],
     }),
     linkopts = select({
-        "//bzl:x64_windows": [],
+        "@toolchain//:windows_x86_64": [],
         "//conditions:default": ["-ldl"],
     }),
     tags = ["llvm"],
@@ -72,11 +73,8 @@ plaidml_cc_library(
         "//tile/proto:proto_cc",
         "//tile/proto:support",
         "@half_repo//:half",
-    ] + select({
-        "//bzl:x64-ubuntu-14.04": ["//lib:llvm"],
-        "//bzl:x64-ubuntu-17.04": ["//lib:llvm"],
-        "//conditions:default": ["@llvm_archive//:llvm"],
-    }),
+        "@llvm_archive//:llvm",
+    ],
     alwayslink = 1,
 )
 
