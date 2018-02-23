@@ -1977,7 +1977,8 @@ def greater_equal(x, y):
 
 
 def hard_sigmoid(x):
-    _report_unimplemented('hard_sigmoid')
+    f = 'function (X) -> (R) { R = (X < -2.5 ? 0 : (X > 2.5 ? 1 : 0.2 * X + 0.5)); }'
+    return _Op('hard_sigmoid', x.dtype, x.shape, f, {'X': x}, ['R'])
 
 
 def identity(x):
@@ -2563,7 +2564,40 @@ def rnn(step_function,
         constants=None,
         unroll=False,
         input_length=None):
-    _report_unimplemented('rnn')
+    if input_length is None:
+        input_length = inputs.shape[1]
+    if input_length is None:
+        raise NotImplementedError('rnn is not implemented for variable sized inputs')
+    if go_backwards:
+        raise NotImplementedError('rnn is not implemented for go_backwards=True')
+    if mask is not None:
+        raise NotImplementedError('rnn is not implemented with mask support')
+
+    def time_expand(val, i, t, prev):
+        if (len(val.shape) < 1):
+            raise Exception('output values must have a batch size dimension')
+        ndmo = len(val.shape) - 1
+        sizes = ', '.join(['N' + str(i) for i in range(ndmo)])
+        idxs = ', '.join(['i' + str(i) for i in range(ndmo)])
+        newshape = (val.shape[0], t) + val.shape[1:]
+        if prev is None:
+            f = "function (I[S, {sizes}]) -> (O) {{ O[n, {i}, {idxs} : N, T, {sizes}] = =(I[n, {idxs}); }}"
+            f = f.format(sizes=sizes, idxs=idxs, i=i)
+            return _Op('time_expand', val.dtype, newshape, f, {'I': val}, ['O'])
+        else:
+            f = "function (I[S, {sizes}], P) -> (O) {{ O[n : S, {i}, {idxs}] = =(I[n, {idxs}) default P; }}"
+            f = f.format(sizes=sizes, idxs=idxs, i=i)
+            return _Op('time_expand', val.dtype, newshape, f, {'I': val, 'P': prev}, ['O'])
+
+    states = initial_states
+    output = None
+    for i in range(input_length):
+        input_val = inputs[:, i]
+        output_val, new_states = step_function(input_val, states + constants)
+        output = time_expand(output_val, i, input_length, output)
+        states = new_states
+
+    return (output_val, output, states)
 
 
 def round(x):
