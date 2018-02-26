@@ -10,6 +10,7 @@
 #include <utility>
 #include <vector>
 
+#include "tile/lang/exprtype.h"
 #include "tile/lang/fnv1a64.h"
 #include "tile/lang/generate.h"
 #include "tile/lang/semprinter.h"
@@ -365,7 +366,7 @@ void Emit::Visit(const sem::CondExpr& n) {
     elseblock = builder_.GetInsertBlock();
 
     // What common type can we coerce both operand values into?
-    sem::Type comtype = CommonType(thenval, elseval);
+    sem::Type comtype = lang::Promote({thenval.t, elseval.t});
 
     // Convert the true value to the common type and exit.
     builder_.SetInsertPoint(thenblock);
@@ -1019,95 +1020,11 @@ bool Emit::PointerAddition(value left, value right) {
   return false;
 }
 
-// For historical reasons, the LLVM backend has always had its own expression type resolution code,
-// independently of the exprtype module which now provides the reference for Tile type promotion.
-// It would be very nice to remove all the now-redundant type management code from the LLVM backend,
-// but that's a big job and the priority right now is to merge the llvm branch back into master.
-// As a hopefully-temporary measure, then, these functions duplicate the type promotion logic found in
-// what is currently tile/hal/opencl/exprtype.cc, to ensure consistent behavior. Since this will
-// inevitably diverge if left alone too long, ALL OF THIS CODE SHOULD BE REMOVED AS SOON AS PRACTICAL.
-
-namespace ExprType {
-// Returns the Plaid arithmetic conversion rank of a type.
-unsigned Rank(sem::Type ty) {
-  if (ty.base != sem::Type::VALUE && ty.base != sem::Type::INDEX) {
-    return 1;
-  }
-  auto dtype = ty.dtype;
-  if (ty.base == sem::Type::INDEX) {
-    dtype = lang::DataType::INT32;
-  }
-  switch (dtype) {
-    case lang::DataType::BOOLEAN:
-      return 2;
-    case lang::DataType::INT8:
-      return 3;
-    case lang::DataType::UINT8:
-      return 4;
-    case lang::DataType::INT16:
-      return 5;
-    case lang::DataType::UINT16:
-      return 6;
-    case lang::DataType::INT32:
-      return 7;
-    case lang::DataType::UINT32:
-      return 8;
-    case lang::DataType::INT64:
-      return 9;
-    case lang::DataType::UINT64:
-      return 10;
-    case lang::DataType::FLOAT16:
-      return 11;
-    case lang::DataType::FLOAT32:
-      return 12;
-    case lang::DataType::FLOAT64:
-      return 13;
-    default:
-      throw std::logic_error{"Invalid type found in typecheck"};
-  }
-}
-
-sem::Type Promote(const std::vector<sem::Type>& types) {
-  sem::Type result{sem::Type::VALUE};
-  unsigned rank_so_far = 0;
-  for (auto ty : types) {
-    switch (ty.base) {
-      case sem::Type::INDEX:
-      case sem::Type::VALUE:
-        break;
-      case sem::Type::POINTER_MUT:
-      case sem::Type::POINTER_CONST:
-        // Promotion of pointer types only happens when we're using a
-        // pointer in a binary op to compute an address.  The result
-        // is always a pointer type.
-        return ty;
-      default:
-        throw std::logic_error{"Void type found during typecheck promotion"};
-    }
-    if (result.vec_width < ty.vec_width) {
-      result.vec_width = ty.vec_width;
-    }
-    auto rank = Rank(ty);
-    if (rank_so_far < rank) {
-      rank_so_far = rank;
-      result.dtype = ty.dtype;
-      result.base = ty.base;
-    }
-  }
-  return result;
-}
-
-} // namespace ExprType
-
-sem::Type Emit::CommonType(const value& left, const value& right) {
-  return ExprType::Promote({left.t, right.t});
-}
-
 sem::Type Emit::ConvergeOperands(value* left, value* right) {
   // Find a common type for these operands. Convert both to the common type.
   // Modify our arguments, replacing the originals with the new values. Return
   // the common type we settled on.
-  sem::Type comtype = CommonType(*left, *right);
+  sem::Type comtype = lang::Promote({left->t, right->t});
   *left = value{CastTo(*left, comtype), comtype};
   *right = value{CastTo(*right, comtype), comtype};
   return comtype;
