@@ -617,16 +617,12 @@ cc_library(
     ],
 )
 
-genrule(
-    name = "libllvm",
-    srcs = [
-        ":base",
-        ":lib",
-        ":targets",
-    ],
-    outs = ["libllvm.a"],
-    cmd = "ar x $(BINDIR)/external/llvm_archive/libbase.lo && ar x $(BINDIR)/external/llvm_archive/liblib.lo && ar x $(BINDIR)/external/llvm_archive/libtargets.lo && ar rs $(@) *.o",
-    visibility = ["//visibility:public"],
+# This is a dummy target used for eliciting the static libraries created by ":llvm".
+# See @vertexai_plaidml//lib/README.md
+cc_binary(
+    name = "static.so",
+    linkshared = 1,
+    deps = [":llvm"],
 )
 
 cc_library(

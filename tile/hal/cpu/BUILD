@@ -66,6 +66,7 @@ plaidml_cc_library(
     deps = [
         ":proto_cc",
         "//base/util",
+        "//lib:llvm",
         "//tile/base",
         "//tile/base:hal",
         "//tile/hal/util:selector",
@@ -73,7 +74,6 @@ plaidml_cc_library(
         "//tile/proto:proto_cc",
         "//tile/proto:support",
         "@half_repo//:half",
-        "@llvm_archive//:llvm",
     ],
     alwayslink = 1,
 )

@@ -75,15 +75,8 @@ plaidml_cc_library(
         "info.h",
         "opencl.h",
     ],
-    # copts = select({
-    #     "@toolchain//:linux_arm_32v7": [],
-    #     "@toolchain//:windows_x86_64": [],
-    #     "//conditions:default": ["-Wno-ignored-attributes"],
-    # }),
     linkopts = select({
-        "@toolchain//:macos_x86_64": [
-            "-framework OpenCL",
-        ],
+        "@toolchain//:macos_x86_64": ["-framework OpenCL"],
         "//conditions:default": [],
     }),
     visibility = ["//visibility:public"],
@@ -100,9 +93,7 @@ plaidml_cc_library(
         "//tile/proto:support",
     ] + select({
         "@toolchain//:macos_x86_64": [],
-        "//conditions:default": [
-            "@opencl_icd_loader_repo//:lib",
-        ],
+        "//conditions:default": ["@opencl_icd_loader_repo//:lib"],
     }),
     alwayslink = 1,
 )
