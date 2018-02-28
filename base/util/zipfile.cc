@@ -2,6 +2,7 @@
 
 #include "base/util/zipfile.h"
 
+#include <algorithm>
 #include <stdexcept>
 
 const size_t BLOCK_SIZE = 8 * 1024;

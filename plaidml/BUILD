@@ -48,13 +48,15 @@ plaidml_cc_library(
         "//plaidml/base",
         "//tile/base",
         "//tile/base:program_cache",
-        "//tile/hal/cpu",
         "//tile/hal/opencl",
         "//tile/platform/local_machine",
         "//tile/proto:proto_cc",
         "@half_repo//:half",
         "@minizip_repo//:minizip",
-    ],
+    ] + select({
+        "@toolchain//:windows_x86_64": [],
+        "//conditions:default": ["//tile/hal/cpu"],
+    }),
 )
 
 # The PLAIDML C library, defined as a Bazel dynamically-loaded library.
