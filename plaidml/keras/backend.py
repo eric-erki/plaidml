@@ -2051,7 +2051,7 @@ def learning_phase():
     # Initialize _in_train_phase if this is the first use
     global _in_train_phase
     if _in_train_phase is None:
-        _in_train_phase = placeholder(ndim=0)
+        _in_train_phase = placeholder(ndim=0, dtype='bool')
     return _in_train_phase
 
 
@@ -2659,12 +2659,9 @@ def set_floatx(dtype):
 def set_learning_phase(value):
     if value != 0 and value != 1:
         raise ValueError("May only set_learning_phase to 0 or 1")
+    value = int(value)
     global _in_train_phase
-    if _in_train_phase is None:
-        # Initialize _in_train_phase if this is the first use
-        _in_train_phase = variable(value)
-    else:
-        _in_train_phase.set_value(value)
+    _in_train_phase = value
 
 
 def set_value(x, value):

@@ -263,11 +263,13 @@ class TestBackendOps(unittest.TestCase):
 
     def a_testLearningPhase(self):
         # Test name prefixed with 'a_' because this needs to run before other tests
-        npt.assert_equal(pkb.learning_phase().eval(), 0)
+        assert isinstance(pkb.learning_phase()._plaidml_val(), plaidml.Placeholder)
         pkb.set_learning_phase(1)
-        npt.assert_equal(pkb.learning_phase().eval(), 1)
+        assert isinstance(pkb.learning_phase(), int)
+        npt.assert_equal(pkb.learning_phase(), 1)
         pkb.set_learning_phase(0)
-        npt.assert_equal(pkb.learning_phase().eval(), 0)
+        assert isinstance(pkb.learning_phase(), int)
+        npt.assert_equal(pkb.learning_phase(), 0)
 
     @compareForwardExact()
     def testShape(self, b):
@@ -522,10 +524,7 @@ class TestBackendOps(unittest.TestCase):
         [m(3, 4) + 0.0001, 0.1],
     ])
     def testElu(self, b, x, a=1.0):
-        return [
-            b.elu(x),
-            b.elu(x, alpha=a)
-        ]
+        return [b.elu(x), b.elu(x, alpha=a)]
 
     # T1031: This doesn't match TF/Theano on corner
     @opTest([
