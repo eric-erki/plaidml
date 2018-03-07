@@ -191,6 +191,7 @@ boost::future<std::unique_ptr<hal::Library>> Compiler::Build(const context::Cont
     VLOG(1) << "Using OpenCL cache directory: " << env_cache;
     cache_dir = env_cache;
   }
+  std::set<std::string> knames;
 
   for (const auto& ki : kernel_info) {
     context::Activity kbuild{activity.ctx(), "tile::hal::opencl::BuildKernel"};
@@ -200,7 +201,8 @@ boost::future<std::unique_ptr<hal::Library>> Compiler::Build(const context::Cont
 
     if (ki.ktype == lang::KernelType::kZero) {
       kinfo.set_src("// Builtin zero kernel");
-    } else {
+    } else if (!knames.count(ki.kfunc->name)) {
+      knames.insert(ki.kfunc->name);
       OptimizeKernel(ki, cl_khr_fp16, settings);
 
       Emit ocl{cl_khr_fp16, cl_khr_fp64};
@@ -229,6 +231,8 @@ boost::future<std::unique_ptr<hal::Library>> Compiler::Build(const context::Cont
       code << "\n\n";
 
       kinfo.set_src(src);
+    } else {
+      kinfo.set_src("// Duplicate");
     }
 
     *(kinfo.mutable_kinfo()) = ki.info;

@@ -7,6 +7,7 @@
 #include <boost/uuid/uuid_generators.hpp>
 #include <boost/uuid/uuid_io.hpp>
 
+#include "base/util/json_transfer.h"
 #include "base/util/logging.h"
 #include "tile/lang/bound.h"
 
@@ -25,27 +26,78 @@ boost::uuids::name_generator name_uuid_gen(master_uuid);
 
 FlatContraction::FlatContraction(const Contraction& c) : access(c.specs.size()), comb_op(c.comb_op), agg_op(c.agg_op) {}
 
-std::string FlatContraction::KeyString() const {
+std::string FlatContraction::TileKeyString() const {
+  using vertexai::json_serialize;
   std::string r;
-  for (size_t i = 0; i < names.size(); i++) {
-    r += printstring("%" PRIu64 "|", ranges[i]);
-    for (auto& a : access) {
-      r += printstring("%" PRId64 " ", a.strides[i]);
+  r += json_serialize(ranges);
+  r += json_serialize(access);
+  r += json_serialize(constraints);
+  r += json_serialize(agg_type);
+  r += json_serialize(agg_vec);
+  r += json_serialize(comb_op);
+  r += json_serialize(agg_op);
+  r += json_serialize(generate_contraction);
+  boost::uuids::uuid id = name_uuid_gen(r);
+  return to_string(id);
+}
+
+static std::string NormalizeName(std::map<std::string, std::string>* map, const Bindings& vars, const std::string& name,
+                                 bool is_def) {
+  auto it = map->find(name);
+  std::string out_name;
+  if (it == map->end()) {
+    if (!is_def) {
+      if (vars.at(name).tag == Binding::ICONST || vars.at(name).tag == Binding::FCONST) {
+        return vars.at(name).key();
+      }
+      throw std::runtime_error("Use of " + name + " before def");
     }
+    out_name = "n" + std::to_string(map->size());
+    map->emplace(name, out_name);
+  } else {
+    out_name = it->second;
   }
-  r += "|";
-  for (auto& a : access) {
-    r += printstring("%" PRId64 " ", a.offset);
-    r += printstring("%" PRId64 " ", a.vector);
+  return out_name;
+}
+
+std::string FlatContraction::CacheKeyString(const Bindings& vars) const {
+  using vertexai::json_serialize;
+  std::string r = TileKeyString();
+  size_t i = 0;
+  std::map<std::string, std::string> map;
+  for (const auto& i : inputs) {
+    r += vars.at(i).key() + " ";
+    NormalizeName(&map, vars, i, true);
   }
-  r += "|";
-  for (const FlatConstraint& c : constraints) {
-    r += "|";
-    for (size_t i = 0; i < c.lhs.size(); i++) {
-      r += printstring("%" PRId64 " ", c.lhs[i]);
+  for (const auto& kvp : post_op_inputs) {
+    r += vars.at(kvp.first).key() + " ";
+    NormalizeName(&map, vars, kvp.first, true);
+  }
+  for (const auto& op : post_ops) {
+    if (op.tag == Op::CONTRACTION) {
+      throw std::runtime_error("Invalid post_op operation type");
     }
-    r += printstring("<%" PRId64 " ", c.rhs);
+    std::string inner;
+    if (op.tag == Op::FUNCTION) {
+      for (const auto& iname : op.inputs) {
+        if (inner.size() > 1) {
+          inner += ",";
+        }
+        inner += NormalizeName(&map, vars, iname, false);
+      }
+    } else {
+      inner += op.inputs[0];
+    }
+    r += NormalizeName(&map, vars, op.output, true);
+    r += "=" + op.f.fn + "(" + inner + "); ";
   }
+  for (const auto& kvp : post_op_inputs) {
+    r += json_serialize(kvp.second);
+  }
+  for (const auto& s : kernel_outputs) {
+    r += NormalizeName(&map, vars, s, false);
+  }
+  std::replace(r.begin(), r.end(), '\n', ' ');
   boost::uuids::uuid id = name_uuid_gen(r);
   return to_string(id);
 }
@@ -84,6 +136,11 @@ FlatContraction Flatten(const Contraction& c, const std::vector<TensorShape>& sh
   }
   // Copy the basic ops across
   FlatContraction out(c);
+
+  // Copy the input names
+  for (const auto& spec : c.specs) {
+    out.inputs.push_back(spec.id);
+  }
 
   // Aggregate type is defined as output type for now
   out.agg_type = shapes[0].type;
@@ -124,8 +181,8 @@ FlatContraction Flatten(const Contraction& c, const std::vector<TensorShape>& sh
             for (auto cons = new_cons.begin(); cons != new_cons.end(); ++cons) {
               cons->poly.substitute(kvp.first, Polynomial(bounds[kvp.first].min));
             }
-            IVLOG(5, "New constraints after replacing " << kvp.first << " with constant "
-                << bounds[kvp.first].min << ": " << new_cons);
+            IVLOG(5, "New constraints after replacing " << kvp.first << " with constant " << bounds[kvp.first].min
+                                                        << ": " << new_cons);
           } else {
             // Add a new value if it's not a const and has a real range
             index_names.insert(kvp.first);
