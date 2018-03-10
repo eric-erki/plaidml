@@ -851,6 +851,8 @@ class Gradients(tile.Operation):
 
 
 def gradients(loss, variables):
+    if isinstance(variables, tile.Value):
+        variables = [variables]
     op = Gradients(loss, variables)
     outs = []
     for i in range(len(op.outputs)):
@@ -997,11 +999,11 @@ matmul = MatMul.function
 class MaxReduce(tile.Operation):
     """Computes the maximum value along some set of axes."""
 
-    def __init__(self, x, axis=None, keepdims=False):
-        if axis == None:
-            axis = list(range(x.shape.ndims))
+    def __init__(self, x, axes=None, keepdims=False):
+        if axes == None:
+            axes = list(range(x.shape.ndims))
 
-        shape, axis, subs = tile.compute_aggregation_axes(x.shape.dims, axis, keepdims)
+        shape, axes, subs = tile.compute_aggregation_axes(x.shape.dims, axes, keepdims)
 
         f = """function (I[{src_ranges}]) -> (O) {{
                    O[{dest_indices}{dest_sep}{dest_ranges}] = >(I[{src_indices}]);
@@ -1010,15 +1012,15 @@ class MaxReduce(tile.Operation):
         super(MaxReduce, self).__init__(f, [('I', x)], [('O', tile.Shape(x.shape.dtype, shape))])
 
 
-def max_reduce(x, axis=None, keepdims=False):
+def max_reduce(x, axes=None, keepdims=False):
     if not x.shape.ndims:
         return x
 
-    if isinstance(axis, (tuple, list)) and not len(axis):
+    if isinstance(axes, (tuple, list)) and not len(axes):
         # Do nothing if max'ing over an empty axis list
         return x
 
-    return MaxReduce.function(x, axis=axis, keepdims=keepdims)
+    return MaxReduce.function(x, axes=axes, keepdims=keepdims)
 
 
 maximum = tile.maximum
@@ -1070,16 +1072,16 @@ max_pool = MaxPool.function
 class Mean(tile.Operation):
     """Computes the mean value along some set of axes."""
 
-    def __init__(self, x, axis=None, keepdims=False):
+    def __init__(self, x, axes=None, keepdims=False, floatx=plaidml.DType.FLOAT32):
         if x.shape.dtype == plaidml.DType.BOOLEAN:
-            x = cast(x, floatx())
+            x = cast(x, floatx)
 
-        if axis == None:
-            axis = list(range(x.shape.ndims))
+        if axes == None:
+            axes = list(range(x.shape.ndims))
 
-        shape, axis, subs = tile.compute_aggregation_axes(x.shape.dims, axis, keepdims)
+        shape, axes, subs = tile.compute_aggregation_axes(x.shape.dims, axes, keepdims)
 
-        subs['mean_ranges'] = '*'.join(['X' + str(i) for i in axis])
+        subs['mean_ranges'] = '*'.join(['X' + str(i) for i in axes])
 
         f = """
             function (I[{src_ranges}]) -> (O) {{
@@ -1090,27 +1092,27 @@ class Mean(tile.Operation):
         super(Mean, self).__init__(f, [('I', x)], [('O', tile.Shape(x.shape.dtype, shape))])
 
 
-def mean(x, axis=None, keepdims=False):
+def mean(x, axes=None, keepdims=False, floatx=plaidml.DType.FLOAT32):
     if not x.shape.ndims:
         return x
 
-    if isinstance(axis, (tuple, list)) and not len(axis):
+    if isinstance(axes, (tuple, list)) and not len(axes):
         # We're taking the mean across an empty axis list.
         # Keras sometimes does this when squeezing a matrix that doesn't need
         # to be squeezed.
         return x
 
-    return Mean.function(x, axis=axis, keepdims=keepdims)
+    return Mean.function(x, axes=axes, keepdims=keepdims, floatx=floatx)
 
 
 class MinReduce(tile.Operation):
     """Computes the minimum value along some set of axes."""
 
-    def __init__(self, x, axis=None, keepdims=False):
-        if axis == None:
-            axis = list(range(x.shape.ndims))
+    def __init__(self, x, axes=None, keepdims=False):
+        if axes == None:
+            axes = list(range(x.shape.ndims))
 
-        shape, axis, subs = tile.compute_aggregation_axes(x.shape.dims, axis, keepdims)
+        shape, axes, subs = tile.compute_aggregation_axes(x.shape.dims, axes, keepdims)
 
         f = """function (I[{src_ranges}]) -> (O) {{
                    O[{dest_indices}{dest_sep}{dest_ranges}] = <(I[{src_indices}]);
@@ -1119,15 +1121,15 @@ class MinReduce(tile.Operation):
         super(MinReduce, self).__init__(f, [('I', x)], [('O', tile.Shape(x.shape.dtype, shape))])
 
 
-def min_reduce(x, axis=None, keepdims=False):
+def min_reduce(x, axes=None, keepdims=False):
     if not x.shape.ndims:
         return x
 
-    if isinstance(axis, (tuple, list)) and not len(axis):
+    if isinstance(axes, (tuple, list)) and not len(axes):
         # Do nothing if min'ing over an empty axis list
         return x
 
-    return MinReduce.function(x, axis=axis, keepdims=keepdims)
+    return MinReduce.function(x, axes=axes, keepdims=keepdims)
 
 
 minimum = tile.minimum
@@ -1472,25 +1474,25 @@ def tanh(data):
 
 class Variance(tile.Operation):
 
-    def __init__(self, x, axis=None, keepdims=False):
+    def __init__(self, x, axes=None, keepdims=False, floatx=plaidml.DType.FLOAT32):
         # This closely follows the implementation of the mean method
         # This computes the *uncorrected* sample variance (i.e. denominator
         # = n rather than = n-1) to match tensorflow
         if x.shape.dtype == plaidml.DType.BOOLEAN:
-            x = cast(x, floatx())
+            x = cast(x, floatx)
 
         if not x.shape.ndims:
             return x
 
-        if axis == None:
-            axis = list(range(x.shape.ndims))
+        if axes == None:
+            axes = list(range(x.shape.ndims))
 
-        shape, axis, subs = tile.compute_aggregation_axes(x.shape.dims, axis, keepdims)
+        shape, axes, subs = tile.compute_aggregation_axes(x.shape.dims, axes, keepdims)
 
-        subs['prod_src_ranges'] = '*'.join(['X' + str(i) for i in axis])
+        subs['prod_src_ranges'] = '*'.join(['X' + str(i) for i in axes])
         subs['mean_ranges'] = ', '.join(['Y' + str(i) for i in range(x.shape.ndims)])
 
-        m = mean(x, axis, True)
+        m = mean(x, axes, True, floatx)
 
         # TODO: Might be possible to write this more efficiently
         f = """

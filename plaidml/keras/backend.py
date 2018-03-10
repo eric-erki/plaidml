@@ -91,23 +91,6 @@ def _report_unimplemented(name):
     raise NotImplementedError(report)
 
 
-KERAS_DTYPES = {
-    'bool': plaidml.DType.BOOLEAN,
-    'float16': plaidml.DType.FLOAT16,
-    'float32': plaidml.DType.FLOAT32,
-    'float64': plaidml.DType.FLOAT64,
-    'int8': plaidml.DType.INT8,
-    'int16': plaidml.DType.INT16,
-    'int32': plaidml.DType.INT32,
-    'int64': plaidml.DType.INT64,
-    'uint8': plaidml.DType.UINT8,
-    'uint16': plaidml.DType.UINT16,
-    'uint32': plaidml.DType.UINT32,
-    'uint64': plaidml.DType.UINT64,
-}
-
-DTYPE_KERASTYPES = dict([[v, k] for k, v in KERAS_DTYPES.items()])
-
 _AUTO_PAD = {
     'valid': op.AutoPadding.VALID,
     'same': op.AutoPadding.SAME_UPPER,
@@ -143,7 +126,7 @@ class _Function(object):
         self._input_types = {}
         for name, val in zip(self._input_names, inputs):
             if is_placeholder(val):
-                self._input_types[name] = DTYPE_KERASTYPES[val.shape.dtype]
+                self._input_types[name] = ptile.PLAIDML_DTYPE_TO_NUMPY[val.shape.dtype]
 
     def __call__(self, inputs):
         # Inputs: a list of bindings for the placeholders.
@@ -220,8 +203,8 @@ class BatchDot(ptile.Operation):
             axes = (axes, axes)
         if axes is None:
             axes = (x.shape.ndims - 1, y.shape.ndims - 2)
-        out_dims = x.shape.dims[:axes[0]] + x.shape.dims[axes[0] + 1:] + y.shape.dims[1:axes[
-            1]] + y.shape.dims[axes[1] + 1:]
+        out_dims = (x.shape.dims[:axes[0]] + x.shape.dims[axes[0] + 1:] + y.shape.dims[1:axes[1]] +
+                    y.shape.dims[axes[1] + 1:])
         if out_dims[0] is None:  # can infer batch size from either x or y
             out_dims = (y.shape.dims[0],) + out_dims[1:]
 
@@ -342,10 +325,12 @@ def cast(x, dtype):
     # Scipy offers
     # Not sure where 'bool' comes from; scipy uses 'bool_' and 'bool8'.
 
-    if dtype not in KERAS_DTYPES:
+    x = ptile.Value.from_python_value(x)
+
+    if dtype not in ptile.NUMPY_DTYPE_TO_PLAIDML:
         raise PlaidMLKerasException('Unsupported cast (%s -> %s)' % (x.shape.dtype, dtype))
 
-    dtype = KERAS_DTYPES[dtype]
+    dtype = ptile.NUMPY_DTYPE_TO_PLAIDML[dtype]
 
     if x.shape.dtype == dtype:
         return x
@@ -382,9 +367,9 @@ class CategoricalCrossentropy(ptile.Operation):
                 }}""".format(
                 fixed_dims=fixed_dims, fixed_idxs=fixed_idxs)
 
-        super(CategoricalCrossentropy, self).__init__(
-            code, [('O', output), ('T', target)],
-            [('R', ptile.Shape(output.shape.dtype, output.shape.dims[:-1]))])
+        super(CategoricalCrossentropy,
+              self).__init__(code, [('O', output), ('T', target)],
+                             [('R', ptile.Shape(output.shape.dtype, output.shape.dims[:-1]))])
 
 
 categorical_crossentropy = CategoricalCrossentropy.function
@@ -563,9 +548,10 @@ def conv2d(x,
            force_winograd=False):
     if data_format is None:
         data_format = image_data_format()
-    if (force_winograd or (data_format == 'channels_last' and kernel.shape.dims[0] == 3 and
-                           kernel.shape.dims[1] == 3 and strides == (1, 1) and dilation_rate ==
-                           (1, 1) and kernel.shape.dims[2] > 4 and kernel.shape.dims[3] > 4)):
+    if (force_winograd or
+        (data_format == 'channels_last' and kernel.shape.dims[0] == 3 and
+         kernel.shape.dims[1] == 3 and strides == (1, 1) and dilation_rate == (1, 1) and
+         kernel.shape.dims[2] > 4 and kernel.shape.dims[3] > 4)):
         return _winograd(x, kernel, padding=padding)
     return conv(x, kernel, strides, padding, data_format, dilation_rate)
 
@@ -662,7 +648,7 @@ def dropout(x, level, noise_shape=None, seed=None):
 
 
 def dtype(x):
-    return DTYPE_KERASTYPES[x.shape.dtype]
+    return ptile.PLAIDML_DTYPE_TO_NUMPY[x.shape.dtype]
 
 
 def elu(x, alpha=1.0):
@@ -696,7 +682,9 @@ class ExpandDims(ptile.Operation):
         ilist_in = ['i' + str(i) for i in range(x.shape.ndims)]
         slist_out = slist_in[0:axis] + ['1'] + slist_in[axis:]
         ilist_out = ilist_in[0:axis] + ['0'] + ilist_in[axis:]
-        newdims = tuple(list(x.shape.dims[0:axis]) + [1,] + list(x.shape.dims[axis:]))
+        newdims = tuple(list(x.shape.dims[0:axis]) + [
+            1,
+        ] + list(x.shape.dims[axis:]))
         f = """
             function (IN[{slist_in}]) -> (OUT) {{
                 OUT[{ilist_out} : {slist_out}] = =(IN[{ilist_in}]);
@@ -754,7 +742,7 @@ def get_value(x):
     tensor = plaidml.Tensor(_device(), shape)
     invoker.set_output('out', tensor)
     invoker.invoke()
-    array = np.ndarray(x.shape.dims, dtype=DTYPE_KERASTYPES[x.shape.dtype])
+    array = np.ndarray(x.shape.dims, dtype=ptile.PLAIDML_DTYPE_TO_NUMPY[x.shape.dtype])
     with tensor.mmap_current() as view:
         view.copy_to_ndarray(array)
     return array
@@ -773,7 +761,7 @@ def greater_equal(x, y):
 
 def hard_sigmoid(x):
     f = 'function (X) -> (R) { R = (X < -2.5 ? 0 : (X > 2.5 ? 1 : 0.2 * X + 0.5)); }'
-    return _Op('hard_sigmoid', x.dtype, x.shape, f, {'X': x}, ['R'])
+    return ptile.Operation(f, [('X', x)], [('R', x.shape)], name='HardSigmoid').sole_output()
 
 
 identity = op.identity
@@ -879,13 +867,20 @@ def map_fn(fn, elems, name=None, dtype=None):
     _report_unimplemented('map_fn')
 
 
-max = op.max_reduce
+def max(x, axis=None, keepdims=False):
+    return op.max_reduce(x, axes=axis, keepdims=keepdims)
+
 
 maximum = op.maximum
 
-mean = op.mean
 
-min = op.min_reduce
+def mean(x, axis=None, keepdims=False):
+    return op.mean(x, axes=axis, keepdims=keepdims, floatx=ptile.NUMPY_DTYPE_TO_PLAIDML[floatx()])
+
+
+def min(x, axis=None, keepdims=False):
+    return op.min_reduce(x, axes=axis, keepdims=keepdims)
+
 
 minimum = op.minimum
 
@@ -1000,27 +995,26 @@ def ones_like(x, dtype=None, name=None):
         }}""".format(
         sizes=sizes, dims=dims)
     return ptile.Operation(f, [('IN', x), ('ONE', a_one)],
-                           [('OUT', ptile.Shape(KERAS_DTYPES[dtype], x.shape.dims))],
+                           [('OUT', ptile.Shape(ptile.NUMPY_DTYPE_TO_PLAIDML[dtype], x.shape.dims))],
                            name='OnesLike') \
                 .sole_output()
 
 
 def permute_dimensions(x, pattern):
-    return ptile.Operation(
-        """function (X[{src_ranges}]) -> (R) {{
+    return ptile.Operation("""function (X[{src_ranges}]) -> (R) {{
                R[{dest_indices} : {dest_ranges}] = =(X[{src_indices}]);
            }}""".format(
-            src_ranges=', '.join(['X{}'.format(i) for i in range(x.shape.ndims)]),
-            src_indices=', '.join(['x{}'.format(i) for i in range(x.shape.ndims)]),
-            dest_ranges=', '.join(['X{}'.format(pattern[i]) for i in range(x.shape.ndims)]),
-            dest_indices=', '.join(['x{}'.format(pattern[i]) for i in range(x.shape.ndims)])),
-        [('X', x)], [('R', ptile.Shape(x.shape.dtype,
-                                       tuple(x.shape.dims[pattern[idx]]
-                                             for idx in range(x.shape.ndims))))]).sole_output()
+        src_ranges=', '.join(['X{}'.format(i) for i in range(x.shape.ndims)]),
+        src_indices=', '.join(['x{}'.format(i) for i in range(x.shape.ndims)]),
+        dest_ranges=', '.join(['X{}'.format(pattern[i]) for i in range(x.shape.ndims)]),
+        dest_indices=', '.join(['x{}'.format(
+            pattern[i]) for i in range(x.shape.ndims)])), [('X', x)], [('R', ptile.Shape(
+                x.shape.dtype, tuple(x.shape.dims[pattern[idx]] for idx in range(x.shape.ndims))))
+                                                                      ]).sole_output()
 
 
 def placeholder(shape=None, ndim=None, dtype=None, sparse=False, name=None):
-    dtype = KERAS_DTYPES[dtype or floatx()]
+    dtype = ptile.NUMPY_DTYPE_TO_PLAIDML[dtype or floatx()]
     if shape is not None:
         return ptile.Value.from_dimensions(shape, dtype, name=name)
     elif ndim is not None:
@@ -1052,9 +1046,9 @@ class Pool(ptile.Operation):
             data_format = image_data_format()
 
         if len(pool_size) != rank:
-            raise ValueError('Pool size inconsistent with input shape: ' +
-                             '{} (rank {}) v {} (rank {})'.format(
-                                 pool_size, len(pool_size), x.shape, x.shape.ndims - 2))
+            raise ValueError(
+                'Pool size inconsistent with input shape: ' + '{} (rank {}) v {} (rank {})'.format(
+                    pool_size, len(pool_size), x.shape, x.shape.ndims - 2))
         if len(strides) != rank:
             raise ValueError('Pool strides length inconsistent with input shape: ' +
                              '{} (rank {}) v {} (rank {})'.format(
@@ -1096,8 +1090,8 @@ class Pool(ptile.Operation):
         elif data_format == 'channels_last':
             input_dims_str = 'N, ' + ', '.join(['L{}'.format(i) for i in range(rank)]) + ', C'
             out_idx_str = 'n, ' + ', '.join(['x{}'.format(i) for i in range(rank)]) + ', c'
-            out_dims_str = 'N, ' + ', '.join(
-                ['{}'.format(out_size[i]) for i in range(rank)]) + ', C'
+            out_dims_str = 'N, ' + ', '.join(['{}'.format(out_size[i])
+                                              for i in range(rank)]) + ', C'
             input_idx_str = 'n, ' + ', '.join(input_idx_list) + ', c'
             outshape = [x.shape.dims[0]] + num_out_size + [x.shape.dims[-1]]
         else:
@@ -1183,7 +1177,8 @@ def print_tensor(x, message=''):
 
 
 def prod(value, axis=None, keepdims=False):
-    return op.prod(value, axes=axis, keepdims=keepdims, floatx=KERAS_DTYPES[floatx()])
+    return op.prod(
+        value, axes=axis, keepdims=keepdims, floatx=ptile.NUMPY_DTYPE_TO_PLAIDML[floatx()])
 
 
 def random_binomial(shape, p=0.0, dtype=None, see=None):
@@ -1271,7 +1266,8 @@ def repeat_elements(x, rep, axis):
         '{}*N{}'.format(rep, i) if i == axis else 'N{}'.format(i) for i in range(x.shape.ndims)
     ]
     oidx_list = [
-        '{}*n{} + k'.format(rep, i) if i == axis else 'n{}'.format(i) for i in range(x.shape.ndims)
+        '{}*n{} + k'.format(rep, i) if i == axis else 'n{}'.format(i)
+        for i in range(x.shape.ndims)
     ]
 
     # Example
@@ -1330,8 +1326,8 @@ def reverse(x, axes):
     axes = [a % x.shape.ndims for a in axes]
     dims = ', '.join('N{}'.format(j) for j in range(x.shape.ndims))
     in_idxs = ', '.join('i{}'.format(j) for j in range(x.shape.ndims))
-    out_idxs = ', '.join(('N{j} - 1 - i{j}' if j in axes else 'i{j}').format(j=j)
-                         for j in range(x.shape.ndims))
+    out_idxs = ', '.join(
+        ('N{j} - 1 - i{j}' if j in axes else 'i{j}').format(j=j) for j in range(x.shape.ndims))
     f = """
         function (I[{dims}]) -> (O) {{
             O[{out_idxs}: {dims}] = =(I[{in_idxs}]);
@@ -1354,8 +1350,8 @@ def rnn(step_function,
         unroll=False,
         input_length=None):
     if input_length is None:
-        input_length = inputs.shape[1]
-    if input_length is None:
+        input_length = inputs.shape.dims[1]
+    if isinstance(input_length, ptile.Value):
         raise NotImplementedError('rnn is not implemented for variable sized inputs')
     if go_backwards:
         raise NotImplementedError('rnn is not implemented for go_backwards=True')
@@ -1363,20 +1359,22 @@ def rnn(step_function,
         raise NotImplementedError('rnn is not implemented with mask support')
 
     def time_expand(val, i, t, prev):
-        if (len(val.shape) < 1):
+        if (len(val.shape.dims) < 1):
             raise PlaidMLKerasException('output values must have a batch size dimension')
-        ndmo = len(val.shape) - 1
+        ndmo = len(val.shape.dims) - 1
         sizes = ', '.join(['N' + str(i) for i in range(ndmo)])
         idxs = ', '.join(['i' + str(i) for i in range(ndmo)])
-        newshape = (val.shape[0], t) + val.shape[1:]
+        newshape = ptile.Shape(val.shape.dtype, (val.shape.dims[0], t) + val.shape.dims[1:])
         if prev is None:
             f = "function (I[S, {sizes}]) -> (O) {{ O[n, {i}, {idxs} : N, T, {sizes}] = =(I[n, {idxs}); }}"
             f = f.format(sizes=sizes, idxs=idxs, i=i)
-            return _Op('time_expand', val.dtype, newshape, f, {'I': val}, ['O'])
+            return ptile.Operation(
+                f, [('I', val)], [('O', newshape)], name='TimeExpand').sole_output()
         else:
             f = "function (I[S, {sizes}], P) -> (O) {{ O[n : S, {i}, {idxs}] = =(I[n, {idxs}) default P; }}"
             f = f.format(sizes=sizes, idxs=idxs, i=i)
-            return _Op('time_expand', val.dtype, newshape, f, {'I': val, 'P': prev}, ['O'])
+            return ptile.Operation(
+                f, [('I', val), ('P', prev)], [('O', newshape)], name='TimeExpand').sole_output()
 
     states = initial_states
     output = None
@@ -1402,8 +1400,7 @@ def separable_conv(x,
                    dilation_rate=None):
     if data_format is None:
         data_format = image_data_format()
-    if pointwise_kernel.shape.dims[-2] != depthwise_kernel.shape.dims[
-            -1] * depthwise_kernel.shape.dims[-2]:
+    if pointwise_kernel.shape.dims[-2] != depthwise_kernel.shape.dims[-1] * depthwise_kernel.shape.dims[-2]:
         raise ValueError(
             ('Shape mismatch in separable convolution. Depthwise kernel input ' +
              'channel count must match pointwise kernel channel count times channel ' +
@@ -1442,7 +1439,7 @@ def separable_conv2d(x,
 
 def set_floatx(dtype):
     keras_set_floatx(dtype)
-    plaidml.set_floatx(KERAS_DTYPES[dtype])
+    plaidml.set_floatx(ptile.NUMPY_DTYPE_TO_PLAIDML[dtype])
 
 
 def set_learning_phase(value):
@@ -1564,16 +1561,17 @@ def stop_gradient(variables):
 
 
 def sum(x, axis=None, keepdims=False):
-    return op.summation(x, axes=axis, keepdims=keepdims, floatx=KERAS_DTYPES[floatx()])
+    return op.summation(
+        x, axes=axis, keepdims=keepdims, floatx=ptile.NUMPY_DTYPE_TO_PLAIDML[floatx()])
 
 
 class Switch(ptile.Operation):
 
     def __init__(self, condition, then_expression, else_expression):
-        return super(Switch, self).__init__(
-            'function (C, T, E) -> (O) { O = (C ? T : E); }',
-            [('C', condition), ('T', then_expression), ('E', else_expression)],
-            [('O', then_expression.shape)])
+        return super(Switch,
+                     self).__init__('function (C, T, E) -> (O) { O = (C ? T : E); }',
+                                    [('C', condition), ('T', then_expression),
+                                     ('E', else_expression)], [('O', then_expression.shape)])
 
 
 switch = Switch.function
@@ -1632,7 +1630,9 @@ def update_sub(x, decrement):
     return (x, x - decrement)
 
 
-var = op.variance
+def var(x, axis=None, keepdims=False):
+    return op.variance(
+        x, axes=axis, keepdims=keepdims, floatx=ptile.NUMPY_DTYPE_TO_PLAIDML[floatx()])
 
 
 def variable(value, dtype=None, name=None, constraint=None):
@@ -1640,15 +1640,15 @@ def variable(value, dtype=None, name=None, constraint=None):
     if constraint:
         raise PlaidMLKerasException('Unsupported variable constraint')
     if isinstance(value, float) or isinstance(value, six.integer_types):
-        tensor = plaidml.Tensor(_device(), plaidml.Shape(_ctx, KERAS_DTYPES[dtype]))
+        tensor = plaidml.Tensor(_device(), plaidml.Shape(_ctx,
+                                                         ptile.NUMPY_DTYPE_TO_PLAIDML[dtype]))
         with tensor.mmap_discard(_ctx) as view:
             view.copy_from_ndarray(np.array(value))
             view.writeback()
         return ptile.Value.from_var(tensor,
-                                    tuple(), KERAS_DTYPES[dtype],
-                                    _prepend_name_scope(name, 'float_variable'
-                                                        if isinstance(value, float) else
-                                                        'int_variable'))
+                                    tuple(), ptile.NUMPY_DTYPE_TO_PLAIDML[dtype],
+                                    _prepend_name_scope(name, 'float_variable' if isinstance(
+                                        value, float) else 'int_variable'))
     elif isinstance(value, ptile.Value):
         func = ptile.compose(_ctx, _device(), [], [('out', value)])
         invoker = plaidml.Invoker(_ctx, func)
@@ -1659,11 +1659,13 @@ def variable(value, dtype=None, name=None, constraint=None):
         return ptile.Value.from_var(tensor, [d.size for d in shape.dimensions], shape.dtype, name)
     else:
         # Treat the value as an ndarray.
-        tensor = plaidml.Tensor(_device(), plaidml.Shape(_ctx, KERAS_DTYPES[dtype], *value.shape))
+        tensor = plaidml.Tensor(_device(),
+                                plaidml.Shape(_ctx, ptile.NUMPY_DTYPE_TO_PLAIDML[dtype],
+                                              *value.shape))
         with tensor.mmap_discard(_ctx) as view:
             view.copy_from_ndarray(value)
             view.writeback()
-        return ptile.Value.from_var(tensor, value.shape, KERAS_DTYPES[dtype],
+        return ptile.Value.from_var(tensor, value.shape, ptile.NUMPY_DTYPE_TO_PLAIDML[dtype],
                                     _prepend_name_scope(name, 'tensor_variable'))
 
 
@@ -1683,7 +1685,7 @@ def zeros_like(x, dtype=floatx(), name=None):
         }}""".format(
         sizes=sizes, dims=dims)
     return ptile.Operation(f, [('IN', x), ('ZERO', a_zero)],
-                           [('OUT', ptile.Shape(KERAS_DTYPES[dtype], x.shape.dims))],
+                           [('OUT', ptile.Shape(ptile.NUMPY_DTYPE_TO_PLAIDML[dtype], x.shape.dims))],
                            name='ZerosLike') \
                 .sole_output()
 

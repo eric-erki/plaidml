@@ -72,6 +72,23 @@ class LogicError(Error):
     pass
 
 
+NUMPY_DTYPE_TO_PLAIDML = {
+    'bool': plaidml.DType.BOOLEAN,
+    'float16': plaidml.DType.FLOAT16,
+    'float32': plaidml.DType.FLOAT32,
+    'float64': plaidml.DType.FLOAT64,
+    'int8': plaidml.DType.INT8,
+    'int16': plaidml.DType.INT16,
+    'int32': plaidml.DType.INT32,
+    'int64': plaidml.DType.INT64,
+    'uint8': plaidml.DType.UINT8,
+    'uint16': plaidml.DType.UINT16,
+    'uint32': plaidml.DType.UINT32,
+    'uint64': plaidml.DType.UINT64,
+}
+
+PLAIDML_DTYPE_TO_NUMPY = dict([[v, k] for k, v in NUMPY_DTYPE_TO_PLAIDML.items()])
+
 Source = namedtuple('Source', ['op', 'output_name'])
 
 
@@ -236,8 +253,8 @@ class Operation(object):
             try:
                 outputs[output_name] = applier.add_output(output_name)
             except BaseException as e:
-                raise Exception('Failed to add output \'{}\' in op {}: {}'.format(
-                    output_name, self.name, e.message))
+                raise Exception('Failed to add output \'{}\' in op {}: {}; code={}'.format(
+                    output_name, self.name, e.message, self.code))
         return outputs
 
 
@@ -502,14 +519,14 @@ class _SliceOf(Operation):
         if step > 0:
             if isinstance(dims[idx], Value):
                 extra_vars.append('Stop{idx} = min({stop}, N{idx});'.format(stop=stop, idx=idx))
-                stop = 'Stop{}'.format(stop)
+                stop = 'Stop{}'.format(idx)
             else:
                 stop = minimum(stop, dims[idx])
             stop_value = minimum(stop_value, dims[idx])
         else:
             if isinstance(dims[idx], Value):
                 extra_vars.append('Stop{idx} = max({stop}, -1);'.format(stop=stop, idx=idx))
-                stop = 'Stop{}'.format(stop)
+                stop = 'Stop{}'.format(idx)
             else:
                 stop = maximum(stop, -1)
             stop_value = maximum(stop_value, -1)
@@ -519,6 +536,28 @@ class _SliceOf(Operation):
         else:
             length_numerator = stop - start
         return length_numerator, stop_value - start_value, step, start, extra_vars
+
+
+class _NDArray(Operation):
+    """
+    An operation that builds a value from a Numpy ndarray.
+    """
+
+    def __init__(self, value):
+        # TODO: Consider copying the value if it's writeable.
+        self._value = value
+        shape = Shape(NUMPY_DTYPE_TO_PLAIDML[value.dtype.name], tuple(value.shape))
+        super(_NDArray, self).__init__(None, [], [('O', shape)], name='NDArray')
+
+    def bind(self, bindings):
+        tensor = plaidml.Tensor(bindings.dev,
+                                plaidml.Shape(bindings.ctx, NUMPY_DTYPE_TO_PLAIDML[self._value.dtype.name],
+                                              *self._value.shape))
+        with tensor.mmap_discard(bindings.ctx) as view:
+            view.copy_from_ndarray(self._value)
+            view.writeback()
+
+        return {'O': tensor}
 
 
 class _ShapelessValue(object):
@@ -709,13 +748,19 @@ class Value(_ShapelessValue):
         return val
 
     @staticmethod
-    def from_python_value(py_val, dtype=None, name=None):
+    def from_python_value(py_val, dtype=None, name=None, ctx=None, dev=None):
         """Builds a Value from a Python value.
+
+        Note: if the context and device are present, the returned value will always be a concrete
+        `Value` (wrapping a PlaidML variable, not an `Operation` output).  Otherwise, the returned
+        `Value` may be an `Operation` output.
 
         Args:
             var: A value of a standard Python type.
             dtype (plaidml.DType): The element datatype, or None.
             name (str): A mnemonic name for the `Value`, or None.
+            ctx (plaidml.context.Context): The context to use for the variable, or None.
+            dev (plaidml.Device): The device to use for the variable, or None.
 
         Returns:
             Value: The wrapped value.
@@ -732,6 +777,23 @@ class Value(_ShapelessValue):
             if dtype is None:
                 dtype = plaidml.DType.FLOAT32
             return Value.from_var(plaidml.Real(py_val), tuple(), dtype, name=name)
+        elif hasattr(py_val, 'shape') and hasattr(py_val, 'dtype'):
+            # Assume it's an ndarray.
+            if ctx and dev:
+                # We have the device; we can return a value immediately.
+                tensor = plaidml.Tensor(
+                    dev,
+                    plaidml.Shape(ctx, NUMPY_DTYPE_TO_PLAIDML[py_val.dtype.name], *py_val.shape))
+                with tensor.mmap_discard(ctx) as view:
+                    view.copy_from_ndarray(py_val)
+                    view.writeback()
+                return Value.from_var(
+                    tensor,
+                    py_val.shape,
+                    NUMPY_DTYPE_TO_PLAIDML[py_val.dtype.name],
+                    name='NDArray')
+            # Otherwise, defer the value creation.
+            return _NDArray(py_val).sole_output()
         else:
             raise NotImplementedError('Unable to build a Value from a \'{}\' instance'.format(
                 py_val.__class__.__name__))
