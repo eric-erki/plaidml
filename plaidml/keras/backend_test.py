@@ -383,8 +383,8 @@ class TestBackendOps(unittest.TestCase):
 
     def testTwoOutputs(self):
         x = pkb.variable(m(3))
-        op = tile.Operation('function (I[N]) -> (O1, O2) { O1 = I; O2 = I; }',
-                            [('I', x)], [('O1', x.shape), ('O2', x.shape)])
+        op = tile.Operation('function (I[N]) -> (O1, O2) { O1 = I; O2 = I; }', [('I', x)],
+                            [('O1', x.shape), ('O2', x.shape)])
         output = op.outputs['O1'].eval()
         output = op.outputs['O2'].eval()
         return 0
@@ -811,27 +811,26 @@ class TestBackendOps(unittest.TestCase):
              '  O[n, x0, x1, co: 1, 5, 5, 1] = +(I[n, (x0 + k0 - 1)/2, (x1 + k1 - 1)/2, ci]' +
              ' * K[2 - k0, 2 - k1, co, ci]);\n}')
         return [
-            tile.Operation(f, [('I', x), ('K', k)],
-                           [('O', tile.Shape(x.shape.dtype, (1, 5, 5, 1)))],
-                           name='DefractTest')
-            .sole_output()
+            tile.Operation(
+                f, [('I', x), ('K', k)], [('O', tile.Shape(x.shape.dtype, (1, 5, 5, 1)))],
+                name='DefractTest').sole_output()
         ]
 
     @opTest([[m(3), m(3) + 1]], skip_tensorflow=True, skip_theano=True)
     def testDefract(self, b, x, k):
         f = 'function(I[N], K[M]) -> (O) {\n  O[x: 5] = +(I[(x - k + 1)/2] * K[k]);\n}'
         return [
-            tile.Operation(f, [('I', x), ('K', k)], [('O', tile.Shape(x.shape.dtype, (5,)))],
-                           name='DefractTest')
-            .sole_output()
+            tile.Operation(
+                f, [('I', x), ('K', k)], [('O', tile.Shape(x.shape.dtype, (5,)))],
+                name='DefractTest').sole_output()
         ]
 
     @opTest([[m(3)]], skip_tensorflow=True, skip_theano=True)
     def testDefractShort(self, b, x):
         f = 'function(I[N]) -> (O) {\n  O[x: 6] = +(I[(x - 1)/2]);\n}'
         return [
-            tile.Operation(f, [('I', x)], [('O', tile.Shape(x.shape.dtype, (6,)))],
-                           name='DefractTest')
+            tile.Operation(
+                f, [('I', x)], [('O', tile.Shape(x.shape.dtype, (6,)))], name='DefractTest')
             .sole_output()
         ]
 
@@ -1208,6 +1207,10 @@ class TestBackendOps(unittest.TestCase):
     @opTest([[m(2, 3, 2)]])
     def testSliceShort(self, b, x):
         return [x[1]]
+
+    @opTest([[m(2, 3, 4, 5)], [m(2, 1, 2)]])
+    def testSliceEllipsis(self, b, x):
+        return [x[..., 1], x[-1, ..., 0, ::-1], x[...]]
 
     def testConvParameterRankExceptions(self):
         A = pkb.variable(m(2, 3, 1))

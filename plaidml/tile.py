@@ -166,8 +166,8 @@ class Operation(object):
             side_effects ([Value, Value]): A dict of side-effects of this operation.
         """
         self.code = code
-        self.inputs = dict(
-            [(k, _ShapelessValue.from_value(Value.from_python_value(v))) for k, v in inputs])
+        self.inputs = dict([(k, _ShapelessValue.from_value(Value.from_python_value(v)))
+                            for k, v in inputs])
         output_list = [(output_name, Value.for_op(shape, self, output_name))
                        for output_name, shape in outputs]
         self.output_tuple = tuple([val for _, val in output_list])
@@ -332,11 +332,12 @@ class _SliceOf(Operation):
 
     def __init__(self, value, key):
 
-        if isinstance(key, slice) or isinstance(key, int):
+        if isinstance(key, slice) or isinstance(key, int) or isinstance(key, type(Ellipsis)):
             key = (key,)
-
         if not isinstance(key, tuple):
             raise ValueError('Cannot index Values using type {}'.format(type(key)))
+        if key.count(Ellipsis) > 1:
+            raise ValueError('Cannot use multiple ellipses in a slice (given {})'.format(key))
 
         var_list = list()
         dim_list = list()
@@ -345,6 +346,18 @@ class _SliceOf(Operation):
         dims = list()
         inner_idx = 0
         extra_vars = []
+        try:
+            ellipsis_idx = key.index(Ellipsis)
+        except ValueError:
+            ellipsis_idx = None
+        if ellipsis_idx is not None:
+            ellipsis_length = value.shape.ndims - len(key) + 1
+            if ellipsis_length < 0:
+                raise ValueError('Slice key too long. Tensor has {} dimensions, key is {}'.format(
+                    value.shape.ndims, key))
+            key = tuple(
+                list(key[:ellipsis_idx]) + [slice(None, None, None)] * ellipsis_length + list(
+                    key[ellipsis_idx + 1:]))
         for idx in range(len(key)):
             length_numerator, length_numerator_value, step, offset, idx_extra_vars = self._parse_slice(
                 value.shape.dims, key, idx)
@@ -366,8 +379,8 @@ class _SliceOf(Operation):
                 if isinstance(length_numerator, str):
                     dims.append(unary_op(length_numerator_value / step, 'ceil(I)', 'Ceiling'))
                     offset_list.append('Offset{} = {};'.format(idx, offset))
-                    formula_list.append('{}*i{}+{}'.format(step, inner_idx, 'Offset{}'.format(
-                        idx)))
+                    formula_list.append('{}*i{}+{}'.format(step, inner_idx,
+                                                           'Offset{}'.format(idx)))
                 else:
                     dims.append(int(math.ceil(float(length_numerator) / step)))
                     formula_list.append('{}*i{}+{}'.format(step, inner_idx, offset))
@@ -720,8 +733,8 @@ class Value(_ShapelessValue):
                 dtype = plaidml.DType.FLOAT32
             return Value.from_var(plaidml.Real(py_val), tuple(), dtype, name=name)
         else:
-            raise NotImplementedError('Unable to build a Value from a \'{}\' instance'
-                                      .format(py_val.__class__.__name__))
+            raise NotImplementedError('Unable to build a Value from a \'{}\' instance'.format(
+                py_val.__class__.__name__))
 
     def _filldim(self, ndims, idx, dim):
         if dim is not None:
@@ -920,8 +933,8 @@ def compose(ctx, dev, inputs, outputs, updates=None):
             vals.append(v)
             vals.append(nv)
         if any(not isinstance(val, _ShapelessValue) for val in vals):
-            raise LogicError('Operation {} bound a non-Value; inputs={}, side_effects={}'
-                             .format(op.name, op.inputs, op.side_effects))
+            raise LogicError('Operation {} bound a non-Value; inputs={}, side_effects={}'.format(
+                op.name, op.inputs, op.side_effects))
         reqs = [v for v in vals if not v.is_bound(bindings)]
         if reqs:
             to_be_bound.append(current)
@@ -1065,30 +1078,18 @@ class DTypeInfo(namedtuple('DTypeInfo', ['base', 'width'])):
 
 
 DTYPE_INFOS = {
-    plaidml.DType.BOOLEAN: DTypeInfo(
-        base='bool', width=1),
-    plaidml.DType.INT8: DTypeInfo(
-        base='int', width=1),
-    plaidml.DType.INT16: DTypeInfo(
-        base='int', width=2),
-    plaidml.DType.INT32: DTypeInfo(
-        base='int', width=4),
-    plaidml.DType.INT64: DTypeInfo(
-        base='int', width=8),
-    plaidml.DType.UINT8: DTypeInfo(
-        base='uint', width=1),
-    plaidml.DType.UINT16: DTypeInfo(
-        base='uint', width=2),
-    plaidml.DType.UINT32: DTypeInfo(
-        base='uint', width=4),
-    plaidml.DType.UINT64: DTypeInfo(
-        base='uint', width=8),
-    plaidml.DType.FLOAT16: DTypeInfo(
-        base='float', width=2),
-    plaidml.DType.FLOAT32: DTypeInfo(
-        base='float', width=4),
-    plaidml.DType.FLOAT64: DTypeInfo(
-        base='float', width=8),
+    plaidml.DType.BOOLEAN: DTypeInfo(base='bool', width=1),
+    plaidml.DType.INT8: DTypeInfo(base='int', width=1),
+    plaidml.DType.INT16: DTypeInfo(base='int', width=2),
+    plaidml.DType.INT32: DTypeInfo(base='int', width=4),
+    plaidml.DType.INT64: DTypeInfo(base='int', width=8),
+    plaidml.DType.UINT8: DTypeInfo(base='uint', width=1),
+    plaidml.DType.UINT16: DTypeInfo(base='uint', width=2),
+    plaidml.DType.UINT32: DTypeInfo(base='uint', width=4),
+    plaidml.DType.UINT64: DTypeInfo(base='uint', width=8),
+    plaidml.DType.FLOAT16: DTypeInfo(base='float', width=2),
+    plaidml.DType.FLOAT32: DTypeInfo(base='float', width=4),
+    plaidml.DType.FLOAT64: DTypeInfo(base='float', width=8),
 }
 
 INFO_DTYPES = dict([[v, k] for k, v in DTYPE_INFOS.items()])
@@ -1199,11 +1200,12 @@ def broadcast_dims(*args):
                 # This broadcast can only be computed at binding time.
                 return make_binding_broadcast(sizes)
             if size and size != this_size:
-                raise LogicError('Broadcast mismatch: {} and {} are incompatible; inputs were: {}'.
-                                 format(this_size, size, ', '.join([
-                                     '({})'.format(', '.join(str(dim) for dim in dtuple))
-                                     for dtuple in dtuples
-                                 ])))
+                raise LogicError(
+                    'Broadcast mismatch: {} and {} are incompatible; inputs were: {}'.format(
+                        this_size, size, ', '.join([
+                            '({})'.format(', '.join(str(dim) for dim in dtuple))
+                            for dtuple in dtuples
+                        ])))
             size = this_size
         return size
 
