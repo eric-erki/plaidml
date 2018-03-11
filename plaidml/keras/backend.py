@@ -261,7 +261,7 @@ class BatchFlatten(ptile.Operation):
         code = ('function (I[{idims}]) -> (O) {{\n' + '  O = reshape(I, {odims});\n'
                 '}}').format(
                     idims=', '.join(in_dim_list), odims=', '.join(out_dim_list))
-        return super(BatchFlatten, self).__init__(code, [('I', x)], [('O', outshape)])
+        super(BatchFlatten, self).__init__(code, [('I', x)], [('O', outshape)])
 
 
 batch_flatten = BatchFlatten.function
@@ -1146,7 +1146,7 @@ class Pool(ptile.Operation):
         else:
             raise ValueError('Unrecognized pool mode \'{}\''.format(pool_mode))
 
-        super(Pool, self).__init__(f, inputs, [('O', ptile.Shape(x.shape.dtype, outshape))])
+        super(Pool, self).__init__(f, inputs, [('O', ptile.Shape(x.shape.dtype, outshape))], name=name)
 
 
 pool = Pool.function
@@ -1232,10 +1232,10 @@ def random_uniform(shape, minval=0.0, maxval=1.0, dtype=None, seed=None):
     return o
 
 
-def random_uniform_variable(shape, low, high, dtype=None, name=None):
+def random_uniform_variable(shape, low, high, dtype=None, name=None, seed=None):
     if seed:
         np.random.seed(seed)
-    val = np.random.uniform(low=low, high=high, size=size)
+    val = np.random.uniform(low=low, high=high, size=shape)
     return variable(val, dtype=dtype)
 
 
@@ -1366,12 +1366,12 @@ def rnn(step_function,
         idxs = ', '.join(['i' + str(i) for i in range(ndmo)])
         newshape = ptile.Shape(val.shape.dtype, (val.shape.dims[0], t) + val.shape.dims[1:])
         if prev is None:
-            f = "function (I[S, {sizes}]) -> (O) {{ O[n, {i}, {idxs} : N, T, {sizes}] = =(I[n, {idxs}); }}"
+            f = "function (I[S, {sizes}]) -> (O) {{ O[n, {i}, {idxs} : N, T, {sizes}] = =(I[n, {idxs}]); }}"
             f = f.format(sizes=sizes, idxs=idxs, i=i)
             return ptile.Operation(
                 f, [('I', val)], [('O', newshape)], name='TimeExpand').sole_output()
         else:
-            f = "function (I[S, {sizes}], P) -> (O) {{ O[n : S, {i}, {idxs}] = =(I[n, {idxs}) default P; }}"
+            f = "function (I[S, {sizes}], P) -> (O) {{ O[n : S, {i}, {idxs}] = =(I[n, {idxs}]) default P; }}"
             f = f.format(sizes=sizes, idxs=idxs, i=i)
             return ptile.Operation(
                 f, [('I', val), ('P', prev)], [('O', newshape)], name='TimeExpand').sole_output()
@@ -1568,10 +1568,9 @@ def sum(x, axis=None, keepdims=False):
 class Switch(ptile.Operation):
 
     def __init__(self, condition, then_expression, else_expression):
-        return super(Switch,
-                     self).__init__('function (C, T, E) -> (O) { O = (C ? T : E); }',
-                                    [('C', condition), ('T', then_expression),
-                                     ('E', else_expression)], [('O', then_expression.shape)])
+        super(Switch, self).__init__('function (C, T, E) -> (O) { O = (C ? T : E); }',
+                                     [('C', condition), ('T', then_expression),
+                                      ('E', else_expression)], [('O', then_expression.shape)])
 
 
 switch = Switch.function

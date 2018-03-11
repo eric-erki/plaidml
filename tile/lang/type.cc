@@ -1,5 +1,6 @@
 #include "tile/lang/type.h"
 
+#include <cmath>
 #include <deque>
 #include <queue>
 #include <set>
@@ -125,6 +126,9 @@ static double ConstantPropagate(const std::string& op, const std::vector<double>
   }
   if (op == "max") {
     return (x[0] < x[1] ? x[1] : x[0]);
+  }
+  if (op == "ceil") {
+    return std::ceil(x[0]);
   }
   throw std::runtime_error("Unknown op " + op + " during constant propagation");
 }

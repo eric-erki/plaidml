@@ -606,7 +606,7 @@ class Dot(tile.Operation):
 
     def __init__(self, x, y):
         if x.shape.dtype != y.shape.dtype:
-            raise PlaidMLKerasException(
+            raise ValueError(
                 'Invalid dtype in multiplication: x.dtype=\'{}\', y.dtype=\'{}\''.format(
                     x.shape.dtype, y.shape.dtype))
 
