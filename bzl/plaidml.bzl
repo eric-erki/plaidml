@@ -7,6 +7,7 @@ PY_SRCS_VER = "PY2AND3"
 PLAIDML_COPTS = select({
     "@toolchain//:macos_x86_64": [
         "-std=c++14",
+        "-Werror",
     ],
     "@toolchain//:windows_x86_64": [
         "/std:c++14",

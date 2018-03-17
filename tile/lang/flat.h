@@ -40,6 +40,12 @@ struct FlatConstraint {
   }
 };
 
+struct FlatPostOpInput {
+  std::string name;
+  FlatTensorAccess access;
+  Binding binding;
+};
+
 struct FlatContraction {
   FlatContraction() = default;
   explicit FlatContraction(const Contraction& c);
@@ -64,8 +70,8 @@ struct FlatContraction {
 
   // Full cache primary key (names replaced to protect the innocent)
   std::vector<Op> post_ops;
-  std::vector<std::pair<std::string, FlatTensorAccess>> post_op_inputs;  // Additional inputs for the post_ops
-  std::vector<std::string> kernel_outputs;                               // Outputs written by the kernel.
+  std::vector<FlatPostOpInput> post_op_inputs;  // Additional inputs for the post_ops
+  std::vector<std::string> kernel_outputs;      // Outputs written by the kernel.
 
   std::string CacheKeyString(const Bindings& vars) const;
 

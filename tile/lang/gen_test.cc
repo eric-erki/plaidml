@@ -21,8 +21,9 @@ struct TestParam {
 
 void RunTest(const TestParam& param) {
   Parser parser;
+  TileOptimizer optimizer;
   auto program = parser.Parse(param.program);
-  auto result = GenerateProgram(program, param.inputs, param.outputs, param.settings, "test");
+  auto result = GenerateProgram(program, param.inputs, param.outputs, param.settings, optimizer, "test");
 
   sem::Print actual(*result.kernels[0].kfunc);
 

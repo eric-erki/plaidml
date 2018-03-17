@@ -79,7 +79,7 @@ std::string stringify_collection(IT begin, IT end) {
       r += ", ";
     }
   }
-  r += "}";
+  r += " }";
   return r;
 }
 

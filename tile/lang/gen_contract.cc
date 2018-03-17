@@ -106,13 +106,13 @@ KernelInfo GenContract(const string& kname, const DirectSettings& settings, cons
     SVLOG(cs, 3, "Input " << i << " offset: " << op.access[i].offset);
     SVLOG(cs, 3, "Input " << i << " stride: " << to_string(op.access[i].strides));
   }
-  for (const auto& kvp : op.post_op_inputs) {
-    SVLOG(cs, 3, "Elementwise input " << kvp.first << " shape: " << vars.at(kvp.first).shape);
+  for (const auto& op_input : op.post_op_inputs) {
+    SVLOG(cs, 3, "Elementwise input " << op_input.name << " shape: " << op_input.binding.shape);
   }
   for (const auto& post_op : op.post_ops) {
     SVLOG(cs, 3, "Elementwise op: " << to_string(post_op));
   }
-  SVLOG(cs, 3, "Tile size: " << to_string(tile));
+  SVLOG(cs, 2, "Tile size: " << to_string(tile));
   SVLOG(cs, 3, "Contraction output var shape: " << vars.at(op.output).shape);
 
   // Map inputs to bindings
@@ -460,18 +460,18 @@ KernelInfo GenContract(const string& kname, const DirectSettings& settings, cons
 
   // Load each input into a register.
   auto output_elem_size = vars.at(op.output).shape.elem_size();
-  for (const auto& kvp : op.post_op_inputs) {
-    std::string input = kvp.first;
+  for (const auto& op_input : op.post_op_inputs) {
+    std::string input = op_input.name;
     std::string declname = std::string("L") + input;
-    sem::Type declatype{sem::Type::VALUE, vars.at(input).shape.type, op.agg_vec};
+    sem::Type declatype{sem::Type::VALUE, op_input.binding.shape.type, op.agg_vec};
     sem::ExprPtr idx;
-    if (vars.at(input).shape.elem_size() == output_elem_size) {
+    if (op_input.binding.shape.elem_size() == output_elem_size) {
       idx = _("gout_idx");
     } else {
       idx = _Const(0);
       for (size_t i = 0; i < sz; i++) {
-        if (kvp.second.strides[i] != 0) {
-          idx = idx + _Const(kvp.second.strides[i]) * (_(op.names[i] + "_gid") + _(op.names[i]));
+        if (op_input.access.strides[i] != 0) {
+          idx = idx + _Const(op_input.access.strides[i]) * (_(op.names[i] + "_gid") + _(op.names[i]));
         }
       }
     }
@@ -560,6 +560,7 @@ KernelInfo GenContract(const string& kname, const DirectSettings& settings, cons
 
     checked_output_block->append(declstmt);
   }
+
   sem::ExprPtr gout = _Const(0);
   const auto& oacc = op.access[0];
   for (size_t i = 0; i < sz; i++) {
@@ -617,9 +618,9 @@ KernelInfo GenContract(const string& kname, const DirectSettings& settings, cons
       func->params.emplace_back(in_type, "in" + std::to_string(i));
     }
   }
-  for (const auto& kvp : op.post_op_inputs) {
-    sem::Type in_type = {sem::Type::POINTER_CONST, vars.at(kvp.first).shape.type, op.agg_vec, 0, sem::Type::GLOBAL};
-    func->params.emplace_back(in_type, kvp.first);
+  for (const auto& op_input : op.post_op_inputs) {
+    sem::Type in_type = {sem::Type::POINTER_CONST, op_input.binding.shape.type, op.agg_vec, 0, sem::Type::GLOBAL};
+    func->params.emplace_back(in_type, op_input.name);
   }
   func->body = kblock;
 

@@ -69,9 +69,9 @@ std::string FlatContraction::CacheKeyString(const Bindings& vars) const {
     r += vars.at(i).key() + " ";
     NormalizeName(&map, vars, i, true);
   }
-  for (const auto& kvp : post_op_inputs) {
-    r += vars.at(kvp.first).key() + " ";
-    NormalizeName(&map, vars, kvp.first, true);
+  for (const auto& op_input : post_op_inputs) {
+    r += vars.at(op_input.name).key() + " ";
+    NormalizeName(&map, vars, op_input.name, true);
   }
   for (const auto& op : post_ops) {
     if (op.tag == Op::CONTRACTION) {
@@ -91,8 +91,8 @@ std::string FlatContraction::CacheKeyString(const Bindings& vars) const {
     r += NormalizeName(&map, vars, op.output, true);
     r += "=" + op.f.fn + "(" + inner + "); ";
   }
-  for (const auto& kvp : post_op_inputs) {
-    r += json_serialize(kvp.second);
+  for (const auto& op_input : post_op_inputs) {
+    r += json_serialize(op_input.access);
   }
   for (const auto& s : kernel_outputs) {
     r += NormalizeName(&map, vars, s, false);
@@ -103,31 +103,44 @@ std::string FlatContraction::CacheKeyString(const Bindings& vars) const {
 }
 
 std::string FlatContraction::toString() const {
-  std::string r;
+  std::stringstream ss;
+  ss << std::setw(8) << ""
+     << "  ";
+  ss << std::setw(8) << "Range"
+     << "  ";
+  for (size_t i = 0; i < inputs.size(); i++) {
+    ss << std::setw(8) << inputs[i] << "  ";
+  }
+  ss << std::endl;
   for (size_t i = 0; i < names.size(); i++) {
-    r += printstring("%s\t%" PRIu64 "\t", names[i].c_str(), ranges[i]);
+    ss << std::setw(8) << names[i] << "  " << std::setw(8) << ranges[i] << "  ";
     for (auto& a : access) {
-      r += printstring("%" PRId64 "\t", a.strides[i]);
+      ss << std::setw(8) << a.strides[i] << "  ";
     }
-    r += "\n";
+    ss << std::endl;
   }
-  r += "off\t\t";
+  ss << std::setw(8) << "off"
+     << "  " << std::setw(8) << ""
+     << "  ";
   for (auto& a : access) {
-    r += printstring("%" PRId64 "\t", a.offset);
+    ss << std::setw(8) << a.offset << "  ";
   }
-  r += "\nvec\t\t";
+  ss << std::endl;
+  ss << std::setw(8) << "vec"
+     << "  " << std::setw(8) << ""
+     << "  ";
   for (auto& a : access) {
-    r += printstring("%" PRId64 "\t", a.vector);
+    ss << std::setw(8) << a.vector << "  ";
   }
-  r += "\n";
+  ss << std::endl;
   for (const FlatConstraint& c : constraints) {
-    r += "Constraint: (";
+    ss << "Constraint: (";
     for (size_t i = 0; i < c.lhs.size(); i++) {
-      r += printstring("%" PRId64 "%c ", c.lhs[i], (i + 1 == c.lhs.size() ? ')' : ','));
+      ss << c.lhs[i] << (i + 1 == c.lhs.size() ? ')' : ',');
     }
-    r += printstring(" <= %" PRId64 "\n", c.rhs);
+    ss << c.rhs << std::endl;
   }
-  return r;
+  return ss.str();
 }
 
 FlatContraction Flatten(const Contraction& c, const std::vector<TensorShape>& shapes) {
