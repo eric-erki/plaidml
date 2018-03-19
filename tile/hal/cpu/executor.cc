@@ -25,8 +25,8 @@ hal::proto::HardwareInfo GetHardwareInfo() {
   hal::proto::HardwareInfo info;
 
   // TODO: We should use the actual processor identifier here.
-  info.set_name("CPU");
-  info.set_vendor("CPU");
+  info.set_name("LLVM_preview_CPU");
+  info.set_vendor("LLVM");
 
   hal::proto::HardwareSettings* settings = info.mutable_settings();
 

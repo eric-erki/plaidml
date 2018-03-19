@@ -12,8 +12,8 @@
         "sel": {
           "and": {
             "sel": [
-              { "name_regex": "CPU" },
-              { "vendor_regex": "CPU" }
+              { "name_regex": "LLVM_preview_CPU" },
+              { "vendor_regex": "LLVM" }
             ]
           }
         },
@@ -21,7 +21,7 @@
           "vec_size": 16,
           "mem_width": 64,
           "use_global": false,
-          "max_regs": 8192,
+          "max_regs": 8192
         }
       },
       {

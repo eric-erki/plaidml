@@ -25,7 +25,7 @@ class Device final : public hal::Device {
     // NOP
   }
 
-  std::string description() final { return "CPU"; }
+  std::string description() final { return "LLVM_preview_CPU"; }
 
   hal::Compiler* compiler() final { return compiler_.get(); }
 
