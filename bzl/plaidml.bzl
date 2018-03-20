@@ -377,7 +377,10 @@ def _plaidml_py_wheel_impl(ctx):
         pkg_inputs += [cfg]
     for tgt in ctx.attr.srcs:
         for src in tgt.files:
-            dest = ctx.new_file(setup_py, 'pkg/' + ctx.attr.package + '/' + src.basename)
+            if ctx.attr.srcs_in_pkg_dir:
+                dest = ctx.new_file(setup_py, 'pkg/' + src.basename)
+            else:
+                dest = ctx.new_file(setup_py, 'pkg/' + ctx.attr.package + '/' + src.basename)
             ctx.actions.run_shell(
                 outputs=[dest],
                 inputs=[src],
@@ -436,6 +439,7 @@ plaidml_py_wheel = rule(
             default = Label("//bzl:setup.tpl.py"),
             allow_single_file = True,
         ),
+        "srcs_in_pkg_dir": attr.bool(default = False),
     },
     implementation = _plaidml_py_wheel_impl,
 )
