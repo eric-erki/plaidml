@@ -53,6 +53,8 @@ extensions = [
     'sphinx.ext.viewcode',
     'sphinx.ext.githubpages',
     'sphinx.ext.extlinks',
+    'sphinxcontrib.fulltoc',
+    'sphinxcontrib.plantuml',
     'm2r',
 ]
 
@@ -164,7 +166,9 @@ extlinks = {'repo': (repo_root + "/%s", '')}
 
 autodoc_mock_imports = ["enum", "numpy", "scipy"]
 
+plantuml = os.environ.get('PLANTUMLSH')
 
+print("PLANTUML!!!!: ", os.getcwd(), plantuml)
 def setup(app):
     app.add_config_value('recommonmark_config', {
         'auto_toc_tree_section': 'Contents',

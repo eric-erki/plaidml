@@ -2,19 +2,23 @@
 
 package(default_visibility = ["//visibility:public"])
 
+filegroup(
+    name = "docsimages",
+    srcs = glob(["*png"]),
+    path = "docs"
+)
 genrule(
     name = "docs",
     srcs = [
-        "conf.py",
-        "requirements.txt",
+        ":docsimages",
+        "//:mddocs",
+        "@plantuml_jar//file"
     ] + glob(
-        ["**/*.rst"],
-        exclude = ["venv/**"],
+        ["**/*"],
     ),
-    outs = ["docs.zip"],
+    outs = ["docs.zip", "_build/html"],
     cmd = """
-        CWD=`pwd`
-        cd $$(dirname $(location conf.py))
+        set -x
         virtualenv --clear venv
         VIRTUAL_ENV_DISABLE_PROMPT=1
         if [ -e 'venv/bin/activate' ]; then
@@ -25,10 +29,11 @@ genrule(
           echo 'Unable to enter virtual python environment'
           exit 1
         fi
-        python -m pip install -r requirements.txt
-        python -m sphinx -a -E -b html . _build/html
-        cd _build/html
-        zip -q -r $$CWD/$@ ./
+        mkdir -p $(location _build/html)/docs
+        cp -r $(locations :docsimages) $(location _build/html)/docs
+        python -m pip install -r $(location requirements.txt)
+        PLANTUMLSH="java -jar ../../../$(location @plantuml_jar//file)"  python -m sphinx -a -E -b html -c $$(dirname $(location conf.py)) $$(dirname $(location conf.py)) $(location _build/html)
+        zip -q -r $(location docs.zip) $(location _build/html)
     """,
     local = 1,
 )
