@@ -117,9 +117,7 @@ class _Function(object):
         self._name = name
         self._input_names = ['I' + str(n) for n in range(len(inputs))]
         self._output_names = ['O' + str(n) for n in range(len(outputs))]
-        self._func = ptile.compose(_ctx,
-                                   _device(),
-                                   list(zip(self._input_names, inputs)),
+        self._func = ptile.compose(_ctx, _device(), list(zip(self._input_names, inputs)),
                                    list(zip(self._output_names, outputs)), updates)
         self._invoker = plaidml.Invoker(_ctx, self._func)
 
@@ -1007,10 +1005,12 @@ def permute_dimensions(x, pattern):
         src_ranges=', '.join(['X{}'.format(i) for i in range(x.shape.ndims)]),
         src_indices=', '.join(['x{}'.format(i) for i in range(x.shape.ndims)]),
         dest_ranges=', '.join(['X{}'.format(pattern[i]) for i in range(x.shape.ndims)]),
-        dest_indices=', '.join(['x{}'.format(
-            pattern[i]) for i in range(x.shape.ndims)])), [('X', x)], [('R', ptile.Shape(
-                x.shape.dtype, tuple(x.shape.dims[pattern[idx]] for idx in range(x.shape.ndims))))
-                                                                      ]).sole_output()
+        dest_indices=', '.join(
+            ['x{}'.format(pattern[i]) for i in range(x.shape.ndims)])), [('X', x)], [
+                ('R',
+                 ptile.Shape(x.shape.dtype,
+                             tuple(x.shape.dims[pattern[idx]] for idx in range(x.shape.ndims))))
+            ]).sole_output()
 
 
 def placeholder(shape=None, ndim=None, dtype=None, sparse=False, name=None):
@@ -1051,8 +1051,8 @@ class Pool(ptile.Operation):
                     pool_size, len(pool_size), x.shape, x.shape.ndims - 2))
         if len(strides) != rank:
             raise ValueError('Pool strides length inconsistent with input shape: ' +
-                             '{} (rank {}) v {} (rank {})'.format(
-                                 strides, len(strides), x.shape.dims, x.shape.ndims - 2))
+                             '{} (rank {}) v {} (rank {})'.format(strides, len(strides),
+                                                                  x.shape.dims, x.shape.ndims - 2))
 
         if data_format == 'channels_first':
             n = 0
@@ -1090,8 +1090,8 @@ class Pool(ptile.Operation):
         elif data_format == 'channels_last':
             input_dims_str = 'N, ' + ', '.join(['L{}'.format(i) for i in range(rank)]) + ', C'
             out_idx_str = 'n, ' + ', '.join(['x{}'.format(i) for i in range(rank)]) + ', c'
-            out_dims_str = 'N, ' + ', '.join(['{}'.format(out_size[i])
-                                              for i in range(rank)]) + ', C'
+            out_dims_str = 'N, ' + ', '.join(['{}'.format(out_size[i]) for i in range(rank)
+                                             ]) + ', C'
             input_idx_str = 'n, ' + ', '.join(input_idx_list) + ', c'
             outshape = [x.shape.dims[0]] + num_out_size + [x.shape.dims[-1]]
         else:
@@ -1112,12 +1112,13 @@ class Pool(ptile.Operation):
             ones = ones_like(x)
             scale_expr = (
                 '  C[{out_idx_str}: {out_dims_str}] = +(Ones[{input_idx_str}]){pool_bounds};\n' +
-                '  O = OT / C;').format(**{
-                    'out_idx_str': out_idx_str,
-                    'out_dims_str': out_dims_str,
-                    'input_idx_str': input_idx_str,
-                    'pool_bounds': pool_bounds
-                })
+                '  O = OT / C;').format(
+                    **{
+                        'out_idx_str': out_idx_str,
+                        'out_dims_str': out_dims_str,
+                        'input_idx_str': input_idx_str,
+                        'pool_bounds': pool_bounds
+                    })
             extra_input = ', Ones[{}]'.format(input_dims_str)
         else:
             raise ValueError('Unrecognized pool mode \'{}\''.format(pool_mode))
@@ -1125,18 +1126,19 @@ class Pool(ptile.Operation):
         f = ('function (I[{input_dims_str}]{extra_input}) -> (O) {{\n' + '{padding_str}\n' +
              '  {internal_name}[{out_idx_str}: {out_dims_str}]' +
              '= {pool_sym}(I[{input_idx_str}]){pool_bounds};\n'
-             '{scale_expr}\n}}').format(**{
-                 'input_dims_str': input_dims_str,
-                 'out_idx_str': out_idx_str,
-                 'out_dims_str': out_dims_str,
-                 'pool_sym': pool_sym,
-                 'input_idx_str': input_idx_str,
-                 'pool_bounds': pool_bounds,
-                 'scale_expr': scale_expr,
-                 'internal_name': internal_name,
-                 'padding_str': padding_str,
-                 'extra_input': extra_input
-             })
+             '{scale_expr}\n}}').format(
+                 **{
+                     'input_dims_str': input_dims_str,
+                     'out_idx_str': out_idx_str,
+                     'out_dims_str': out_dims_str,
+                     'pool_sym': pool_sym,
+                     'input_idx_str': input_idx_str,
+                     'pool_bounds': pool_bounds,
+                     'scale_expr': scale_expr,
+                     'internal_name': internal_name,
+                     'padding_str': padding_str,
+                     'extra_input': extra_input
+                 })
 
         name = 'pool{}d'.format(rank)
         if pool_mode == 'max':
@@ -1146,7 +1148,8 @@ class Pool(ptile.Operation):
         else:
             raise ValueError('Unrecognized pool mode \'{}\''.format(pool_mode))
 
-        super(Pool, self).__init__(f, inputs, [('O', ptile.Shape(x.shape.dtype, outshape))], name=name)
+        super(Pool, self).__init__(
+            f, inputs, [('O', ptile.Shape(x.shape.dtype, outshape))], name=name)
 
 
 pool = Pool.function
@@ -1358,7 +1361,7 @@ def rnn(step_function,
     if mask is not None:
         raise NotImplementedError('rnn is not implemented with mask support')
 
-    def time_expand(val, i, t, prev):
+    def time_expand(val, ii, t, prev):
         if (len(val.shape.dims) < 1):
             raise PlaidMLKerasException('output values must have a batch size dimension')
         ndmo = len(val.shape.dims) - 1
@@ -1366,13 +1369,15 @@ def rnn(step_function,
         idxs = ', '.join(['i' + str(i) for i in range(ndmo)])
         newshape = ptile.Shape(val.shape.dtype, (val.shape.dims[0], t) + val.shape.dims[1:])
         if prev is None:
-            f = "function (I[S, {sizes}]) -> (O) {{ O[n, {i}, {idxs} : N, T, {sizes}] = =(I[n, {idxs}]); }}"
-            f = f.format(sizes=sizes, idxs=idxs, i=i)
+            if ii != 0:
+                raise RuntimeError("Generating RNN at time step {} with no previous time step".format(ii))
+            f = "function (I[B, {sizes}]) -> (O) {{ O[b, 0, {idxs} : B, {T}, {sizes}] = =(I[b, {idxs}]); }}"
+            f = f.format(sizes=sizes, idxs=idxs, T=t)
             return ptile.Operation(
                 f, [('I', val)], [('O', newshape)], name='TimeExpand').sole_output()
         else:
-            f = "function (I[S, {sizes}], P) -> (O) {{ O[n : S, {i}, {idxs}] = =(I[n, {idxs}]) default P; }}"
-            f = f.format(sizes=sizes, idxs=idxs, i=i)
+            f = "function (I[B, {sizes}], P) -> (O) {{ O[b, {ii}, {idxs} : B, {T}, {sizes}] = =(I[b, {idxs}]) default P; }}"
+            f = f.format(sizes=sizes, idxs=idxs, ii=ii, T=t)
             return ptile.Operation(
                 f, [('I', val), ('P', prev)], [('O', newshape)], name='TimeExpand').sole_output()
 
@@ -1463,8 +1468,8 @@ def set_value(x, value):
         if x.shape.dims != () and x.shape.dims != (1,):
             raise NotImplementedError(
                 'The PlaidML backend for Keras does not support changing tensor shapes with set_value.\n'
-                + 'existing.shape = ' + str(
-                    x.shape) + ', value is a non-array object of type: ' + str(type(value)))
+                + 'existing.shape = ' + str(x.shape) + ', value is a non-array object of type: ' +
+                str(type(value)))
     with x.var.mmap_discard(_ctx) as view:
         view.copy_from_ndarray(np.asarray(value))
         view.writeback()
@@ -1644,8 +1649,7 @@ def variable(value, dtype=None, name=None, constraint=None):
         with tensor.mmap_discard(_ctx) as view:
             view.copy_from_ndarray(np.array(value))
             view.writeback()
-        return ptile.Value.from_var(tensor,
-                                    tuple(), ptile.NUMPY_DTYPE_TO_PLAIDML[dtype],
+        return ptile.Value.from_var(tensor, tuple(), ptile.NUMPY_DTYPE_TO_PLAIDML[dtype],
                                     _prepend_name_scope(name, 'float_variable' if isinstance(
                                         value, float) else 'int_variable'))
     elif isinstance(value, ptile.Value):
