@@ -1209,10 +1209,21 @@ def random_normal_variable(shape, mean, scale, dtype=None, name=None, seed=None)
 def random_uniform(shape, minval=0.0, maxval=1.0, dtype=None, seed=None):
     dtype = dtype or floatx()
     rng_state = _make_rng_state(seed)
-    args = ', '.join(['I'] + [str(i) for i in shape])
+    shape_inputs = []
+    shape_vars = []
+    shape_args = []
+    for idx, value in enumerate(shape):
+        if isinstance(value, ptile.Value):
+            shape_var = 'S{}'.format(idx)
+            shape_vars.append(shape_var)
+            shape_args.append(shape_var)
+            shape_inputs.append((shape_var, value))
+        else:
+            shape_args.append(str(value))
     t = ptile.Operation(
-        'function (I) -> (O) {{ O = prng_step({args}); }}'.format(args=args), [('I', rng_state)],
-        [('O', ptile.Shape(plaidml.DType.UINT32, tuple()))],
+        'function ({inputs}) -> (O) {{ O = prng_step({args}); }}'.format(
+            inputs=', '.join(['I'] + shape_vars), args=', '.join(['I'] + shape_args)),
+        [('I', rng_state)] + shape_inputs, [('O', ptile.Shape(plaidml.DType.UINT32, tuple()))],
         name='PrngStep').sole_output()
     n = ptile.Operation(
         'function (I) -> (O) { O = prng_state(I); }', [('I', t)],
