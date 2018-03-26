@@ -678,6 +678,10 @@ static KernelList Compile(const Program& orig_prog, const ShapeMap& inputs, cons
 
     if (op.tag == Op::CONTRACTION) {
       IVLOG(3, "Running contraction " << op << " vars = " << vars);
+      if (vars.at(op.output).shape.byte_size() == 0) {
+        IVLOG(3, "Contraction output " << op.output << " size==0; skipping");
+        continue;
+      }
       std::vector<TensorShape> tshapes = MakeTShapes(op.c, vars);
       std::vector<Polynomial> out_poly;
       FlatContraction flat = Compile(op.c, tshapes, &out_poly);

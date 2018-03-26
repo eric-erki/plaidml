@@ -551,7 +551,8 @@ class _NDArray(Operation):
 
     def bind(self, bindings):
         tensor = plaidml.Tensor(bindings.dev,
-                                plaidml.Shape(bindings.ctx, NUMPY_DTYPE_TO_PLAIDML[self._value.dtype.name],
+                                plaidml.Shape(bindings.ctx,
+                                              NUMPY_DTYPE_TO_PLAIDML[self._value.dtype.name],
                                               *self._value.shape))
         with tensor.mmap_discard(bindings.ctx) as view:
             view.copy_from_ndarray(self._value)

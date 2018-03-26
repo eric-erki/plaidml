@@ -417,7 +417,6 @@ class _Library(plaidml.library.Library):
             ctypes.c_size_t  # size_t dim
         ]
         self.plaidml_get_shape_dimension_size.restype = ctypes.c_uint64
-        self.plaidml_get_shape_dimension_size.errcheck = self._check_err
 
         # PLAIDML_API int64_t plaidml_get_shape_dimension_stride(plaidml_shape* shape, size_t dim);
         self.plaidml_get_shape_dimension_stride = lib.plaidml_get_shape_dimension_stride
@@ -426,7 +425,6 @@ class _Library(plaidml.library.Library):
             ctypes.c_size_t  # size_t dim
         ]
         self.plaidml_get_shape_dimension_stride.restype = ctypes.c_int64
-        self.plaidml_get_shape_dimension_stride.errcheck = self._check_err
 
         # PLAIDML_API uint64_t plaidml_get_shape_buffer_size(plaidml_shape* shape);
         self.plaidml_get_shape_buffer_size = lib.plaidml_get_shape_buffer_size
