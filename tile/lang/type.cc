@@ -130,6 +130,9 @@ static double ConstantPropagate(const std::string& op, const std::vector<double>
   if (op == "ceil") {
     return std::ceil(x[0]);
   }
+  if (op == "floor") {
+    return std::floor(x[0]);
+  }
   throw std::runtime_error("Unknown op " + op + " during constant propagation");
 }
 
