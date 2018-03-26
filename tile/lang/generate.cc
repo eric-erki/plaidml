@@ -840,7 +840,7 @@ TileOptions TileOptimizer::OptionsFor(const std::string& kname, const HardwareSe
     auto by_score = TileOptimize(settings, op, max_options == 1);
     size_t count = 0;
     for (auto it = by_score.rbegin(); it != by_score.rend() && count < max_options; it++, count++) {
-      options.emplace_back(TileOption{"", it->second, it->first, it->first});
+      options.emplace_back(TileOption{"", it->second, it->first, it->first, it->first});
     }
   } else {
     std::multimap<double, TileOption> by_cost;
