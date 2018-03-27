@@ -15,8 +15,8 @@ For background and early benchmarks see our [blog post](http://vertex.ai/blog/an
 
 - [Current Limitations](#current-limitations)
 - [Installation Instructions](#installation-instructions)
-- [Building PlaidML](BUILDING.md)
-- [Contributing](CONTRIBUTING.md)
+- [Building PlaidML](docs/building.md)
+- [Contributing](docs/contributing.rst)
 - [Reporting Issues](#reporting-issues)
 
 ## Current Limitations

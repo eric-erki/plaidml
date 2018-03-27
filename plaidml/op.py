@@ -5,12 +5,15 @@ The TILE standard operation library.
 These operations have been shown to be useful across a variety of frameworks.
 (Frameworks are of course free to define their own operations in addition to
 these, although it'll be easier to use them with these if a framework's own
-operations are defined using the standard `plaidml.tile` base classes.)
+operations are defined using the standard :doc:`plaidml.tile` base classes.)
 
-Each operation is defined as a tile.Operation subclass, allowing it to be
+Each operation is defined as a ``tile.Operation`` subclass, allowing it to be
 used in pattern matching.  Additionally, each operation is provided via a
 top-level function that wraps the class, allowing composite operations to
 be built up using a functional programming style.
+
+See the `PlaidML Op Tutorial <https://github.com/plaidml/plaidml/wiki/PlaidML-Op-Tutorial>`_
+for information about writing your own custom operations.
 """
 
 # pylint: disable=invalid-name
