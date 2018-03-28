@@ -152,9 +152,13 @@ def _plaidml_py_wheel_impl(ctx):
             arguments=[ctx.file.config.path, cfg.path],
             mnemonic="CopySetupCfg")
         pkg_inputs += [cfg]
+    build_src_base = ctx.build_file_path.rsplit('/', 1)[0]
+    pkg_prefix = ctx.attr.package_prefix
+    if pkg_prefix != '':
+        pkg_prefix = '/' + pkg_prefix
     for tgt in ctx.attr.srcs:
-        for src in tgt.files:
-            dest = ctx.new_file(setup_py, 'pkg/' + ctx.attr.package + '/' + src.basename)
+        for src in tgt.files + tgt.data_runfiles.files:
+            dest = ctx.new_file(setup_py, 'pkg' + pkg_prefix + src.path[len(build_src_base):])
             ctx.actions.run_shell(
                 outputs=[dest],
                 inputs=[src],
@@ -162,17 +166,15 @@ def _plaidml_py_wheel_impl(ctx):
                 arguments=[src.path, dest.path],
                 mnemonic="CopyPackageFile")
             pkg_inputs += [dest]
-    pkg_name = ctx.attr.package.replace('/', '_')
     ctx.actions.expand_template(
         template=tpl,
         output=setup_py,
         substitutions={
-            'bzl_package_name': pkg_name,
+            'bzl_package_name': ctx.attr.package_name,
             'bzl_version': version,
-            'bzl_target_cpu': ctx.var['TARGET_CPU'],
-            '{CONSOLE_SCRIPTS}': ",\n".join(ctx.attr.console_scripts)
+            'bzl_target_cpu': ctx.var['TARGET_CPU']
         })
-    wheel_filename = "dist/%s-%s-%s-%s-%s.whl" % (pkg_name, version, ctx.attr.python, ctx.attr.abi,
+    wheel_filename = "dist/%s-%s-%s-%s-%s.whl" % (ctx.attr.package_name, version, ctx.attr.python, ctx.attr.abi,
                                                   ctx.attr.platform)
     wheel = ctx.new_file(setup_py, wheel_filename)
     bdist_wheel_args = [setup_py.path, "--no-user-cfg", "bdist_wheel"]
@@ -203,12 +205,11 @@ plaidml_py_wheel = rule(
             allow_files = True,
         ),
         "config": attr.label(allow_single_file = [".cfg"]),
-        "data_files": attr.label_list(),
-        "package": attr.string(mandatory = True),
+        "package_name": attr.string(mandatory = True),
+        "package_prefix": attr.string(default = ""),
         "python": attr.string(mandatory = True),
         "abi": attr.string(default = "none"),
         "platform": attr.string(default = "any"),
-        "console_scripts": attr.string_list(),
         "_setup_py_tpl": attr.label(
             default = Label("//bzl:setup.tpl.py"),
             allow_single_file = True,
