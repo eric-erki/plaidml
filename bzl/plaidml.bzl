@@ -152,13 +152,13 @@ def _plaidml_py_wheel_impl(ctx):
             arguments=[ctx.file.config.path, cfg.path],
             mnemonic="CopySetupCfg")
         pkg_inputs += [cfg]
-    build_src_base = ctx.build_file_path.rsplit('/', 1)[0]
+    build_src_base = ctx.build_file_path.rsplit('/', 1)[0] + "/"
     pkg_prefix = ctx.attr.package_prefix
     if pkg_prefix != '':
         pkg_prefix = '/' + pkg_prefix
     for tgt in ctx.attr.srcs:
         for src in tgt.files + tgt.data_runfiles.files:
-            dest = ctx.new_file(setup_py, 'pkg' + pkg_prefix + src.path[len(build_src_base):])
+            dest = ctx.new_file(setup_py, 'pkg' + pkg_prefix + src.path[src.path.find(build_src_base) + len(build_src_base) - 1:])
             ctx.actions.run_shell(
                 outputs=[dest],
                 inputs=[src],
