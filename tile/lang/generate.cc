@@ -765,6 +765,10 @@ static KernelList Compile(const Program& orig_prog, const ShapeMap& inputs, cons
     // contraction itself later.
 
     FlatContraction flat;
+
+    flat.comb_op = CombinationOp::NONE;
+    flat.agg_op = AggregationOp::NONE;
+
     std::vector<Polynomial> out_poly;
     {
       // The initial elementwise operation's output is used to
