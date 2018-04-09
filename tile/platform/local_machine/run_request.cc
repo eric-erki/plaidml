@@ -12,7 +12,10 @@ class ScheduleRunner final : private StepVisitor {
  public:
   static boost::future<std::vector<std::shared_ptr<hal::Result>>> Run(const context::Context& ctx, RunRequest* req) {
     ScheduleRunner runner{ctx, req};
-    runner.deps_.resize(req->program()->schedule().steps.size());
+    auto size = req->program()->schedule().steps.size();
+    runner.deps_.resize(size);
+    std::vector<std::shared_ptr<hal::Event>> terminal_deps;
+    terminal_deps.reserve(size);  // Pre-allocate for the worst case.
     try {
       for (const auto& step : req->program()->schedule().steps) {
         IVLOG(1, "Queueing s" << step->idx << ": " << *step);
@@ -22,16 +25,33 @@ class ScheduleRunner final : private StepVisitor {
       req->shim()->SetLaunchException(std::current_exception());
     }
 
+    boost::future<std::vector<std::shared_ptr<hal::Result>>> results;
+
     if (!runner.dep_set_.size()) {
-      return boost::make_ready_future<std::vector<std::shared_ptr<hal::Result>>>();
+      results = boost::make_ready_future<std::vector<std::shared_ptr<hal::Result>>>();
+    } else {
+      for (const auto& dep : runner.dep_set_) {
+        terminal_deps.emplace_back(dep);
+      }
+      results = req->program()->devinfo()->dev->executor()->WaitFor(terminal_deps);
     }
-
-    runner.deps_.clear();
-    for (const auto& dep : runner.dep_set_) {
-      runner.deps_.emplace_back(dep);
+    if (ctx.is_logging_events() || VLOG_IS_ON(1)) {
+      // We want to return results for *all* of the steps.
+      std::vector<boost::shared_future<std::shared_ptr<hal::Result>>> dep_futures;
+      for (const auto& dep : runner.deps_) {
+        dep_futures.emplace_back(dep->GetFuture());
+      }
+      results = results.then([dep_futures=std::move(dep_futures)](boost::future<std::vector<std::shared_ptr<hal::Result>>> r) {
+        r.get();
+        // N.B. All of the step futures should be ready.
+        std::vector<std::shared_ptr<hal::Result>> results;
+        for (auto& dep : dep_futures) {
+          results.push_back(dep.get());
+        }
+        return results;
+      });
     }
-
-    return req->program()->devinfo()->dev->executor()->WaitFor(runner.deps_);
+    return results;
   }
 
  private:
