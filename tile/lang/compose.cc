@@ -570,11 +570,12 @@ std::string BoundFunction::Apply(const std::shared_ptr<Value>& val) {
   std::string name = ValueVisitor<std::string>::Apply(val);
   auto it2 = g_ids.find(val);
   if (it2 != g_ids.end()) {
-    Attribute attr = {"pid", {}};
+    proto::Attribute attr;
+    attr.set_name("pid");
     for (const auto& s : it2->second) {
-      attr.params.push_back(s);
+      attr.add_params(s);
     }
-    prog_.ops.back().attributes.emplace_back(attr);
+    prog_.ops.back().attributes.emplace_back(std::move(attr));
   }
   /*
   auto it2 = g_deriv_source.find(val);
@@ -844,8 +845,8 @@ void FunctionApplication::SetDone() {
       IVLOG(4, "FunApp::SetDone " << this << " binding " << o.output << " ->(contraction) " << *bindings_[o.output]);
     }
     for (const auto& attr : o.attributes) {
-      if (attr.name == "pid") {
-        for (const auto& s : attr.params) {
+      if (attr.name() == "pid") {
+        for (const auto& s : attr.params()) {
           g_ids[bindings_[o.output]].emplace(s);
         }
       }

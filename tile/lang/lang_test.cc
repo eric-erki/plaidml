@@ -772,9 +772,9 @@ TEST_CASE("Check attribute parsing", "[attr]") {
   const auto& op = prog.ops[0];
   REQUIRE(op.attributes.size() == 1);
   const auto& attr = op.attributes[0];
-  REQUIRE(attr.name == "hello");
-  REQUIRE(attr.params.size() == 1);
-  REQUIRE(attr.params[0] == "world");
+  REQUIRE(attr.name() == "hello");
+  REQUIRE(attr.params_size() == 1);
+  REQUIRE(attr.params().Get(0) == "world");
   REQUIRE(to_string(attr) == "hello(world)");
   auto opstr = to_string(op);
   REQUIRE(opstr.find("[[hello(world)]] O[") == 0);

@@ -5,6 +5,11 @@ package vertexai.tile.lang.proto;
 option java_package = "ai.vertex.tile.lang";
 option java_outer_classname = "LangProtos";
 
+message Attribute {
+  string name = 1;
+  repeated string params = 2;
+}
+
 message KernelInfo {
   oneof kernel_type {
     ContractionInfo element = 1;
@@ -35,6 +40,7 @@ message ContractionInfo {
   repeated int64 off = 3;
   repeated int64 vec = 4;
   repeated Constraint constraints = 5;
+  repeated Attribute attributes = 6;
 }
 
 message ZeroInfo {
