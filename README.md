@@ -13,6 +13,7 @@ PlaidML is a multi-language acceleration framework that:
 
 For background and early benchmarks see our [blog post](http://vertex.ai/blog/announcing-plaidml) announcing the release. PlaidML is under active development and should be thought of as alpha quality.
 
+- [Documentation](https://vertexai-plaidml.readthedocs-hosted.com/)
 - [Current Limitations](#current-limitations)
 - [Installation Instructions](#installation-instructions)
 - [Building PlaidML](docs/building.md)

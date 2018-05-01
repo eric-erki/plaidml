@@ -57,10 +57,9 @@ One of the most involved compilation steps is creating kernels for contractions.
 * Reducing the number of multiple-index comparisons (expressions like ``i + 2*k < 9``)
 * Disentangling output and input indices, allowing iteration over output indices in outer loops such that each index produces a single output
 
-These simplifications make it possible to automatically generate a kernel for a ``FlatContraction`` with reasonable performance, which can be improved further with additional optimizations elsewhere in Tile compilation.
-
 Optimization
 ____________
+These simplifications make it possible to automatically generate specifications for a kernel for a ``FlatContraction``. This includes using ``lang::TileOptimizer`` to simulate the performance of the kernel on the target device with varying tile sizes, thus enabling flat contractions to be automatically converted into performant kernels.
 
 ``GenerateProgram`` also processes constants and elementwise functions, as well as special operations (e.g. psuedorandom number generation). It may produce additional kernels not explicitly specified in Tile (e.g. initializing tensors to zero). It looks for opportunities to reduce the number of kernels (e.g. if you are taking the log of the absolute value of a tensor those operations can generally happen in the same kernel).
 
