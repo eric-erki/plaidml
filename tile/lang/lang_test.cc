@@ -172,10 +172,10 @@ TEST_CASE("Vectorized Flop Computation", "[conv_opt][opt]") {
   auto vectorized_op = Vectorize(op, settings.vec_size);
   auto by_score = TileOptimize(settings, vectorized_op, true);
   auto tile = by_score.rbegin()->second;
-  PerfStats psn = ComputeTileStats(settings, op, tile);
-  PerfStats psv = ComputeTileStats(vectorized_gpu, op, tile);
-  REQUIRE(psn.true_ops == psv.true_ops);
-  REQUIRE(psn.true_ops == ops);
+  proto::PerfStats psn = ComputeTileStats(settings, op, tile);
+  proto::PerfStats psv = ComputeTileStats(vectorized_gpu, op, tile);
+  REQUIRE(psn.true_ops() == psv.true_ops());
+  REQUIRE(psn.true_ops() == ops);
 }
 
 TEST_CASE("Compile Agg Prod", "[compile]") {

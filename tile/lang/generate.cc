@@ -67,7 +67,8 @@ static KernelInfo GenerateContractionKernel(const std::string& kname, const Hard
                                             const Contraction* c, const FlatContraction& flat, const TileOption& option,
                                             const std::vector<std::string>& inputs, const Bindings& vars,
                                             const VarRewrites& var_rewrites) {
-  KernelInfo ki = GenContract(kname, settings, flat, option.shape, vars, inputs);
+  proto::PerfStats perf = ComputeTileStats(settings, flat, option.shape);
+  KernelInfo ki = GenContract(kname, settings, flat, option.shape, vars, inputs, perf);
   ki.outputs = flat.kernel_outputs;
   ki.key = flat.TileKeyString();
   ki.settings = settings;
@@ -81,9 +82,9 @@ static KernelInfo GenerateContractionKernel(const std::string& kname, const Hard
   for (const auto& op_input : flat.post_op_inputs) {
     ki.inputs.emplace_back(var_rewrites.Lookup(op_input.name));
   }
-  PerfStats perf = ComputeTileStats(settings, flat, option.shape);
-  ki.tot_bytes = perf.work_groups * ((perf.inner_loops * perf.mem_read) + perf.mem_write);
-  ki.tot_flops = perf.true_ops;
+  ki.tot_bytes = perf.work_groups() * ((perf.inner_loops() * perf.mem_read()) + perf.mem_write());
+  ki.tot_flops = perf.true_ops();
+  *(ki.info.mutable_perf_stats()) = perf;
   if (VLOG_IS_ON(1)) {
     std::string tsize = "";
     for (size_t size : option.shape) {
