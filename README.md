@@ -10,18 +10,18 @@ PlaidML is a multi-language acceleration framework that:
   * Allows hardware developers to quickly integrate with high-level frameworks
   * Allows framework developers to easily add support for many kinds of hardware
   * Works on all major platforms - linux, [macOS](http://vertex.ai/blog/plaidml-mac-preview), [Windows](http://vertex.ai/blog/deep-learning-for-everyone-plaidml-for-windows)
+  * Allows developers to create hardware accelerated, novel, performance portable research kernels.
 
-For background and early benchmarks see our [blog post](http://vertex.ai/blog/announcing-plaidml) announcing the release. PlaidML is under active development and should be thought of as alpha quality.
+For examples and benchmarks, see our blog [blog](http://vertex.ai/blog).
 
 - [Documentation](https://vertexai-plaidml.readthedocs-hosted.com/)
-- [Current Limitations](#current-limitations)
 - [Installation Instructions](#installation-instructions)
 - [Building PlaidML](docs/building.md)
 - [Contributing](docs/contributing.rst)
 - [Reporting Issues](#reporting-issues)
 
 ### Recent Release Notes
-* PlaidML 0.3.0
+* PlaidML 0.3.2
   * Now supports ONNX 1.1.0 as a backend through [onnx-plaidml](https://github.com/plaidml/onnx-plaidml)
   * Preliminary support for LLVM. Currently only supports CPUs, and only on Linux and macOS. More soon.
   * Support for LSTMs & RNNs with static loop sizes, such as examples/imdb_lstm.py (from Keras)
@@ -31,16 +31,9 @@ For background and early benchmarks see our [blog post](http://vertex.ai/blog/an
   * Adds a shared generic op library in python to make creating frontends easier
      * plaidml-keras now uses this library
   * Uses [plaidml/toolchain](https://github.com/plaidml/toolchain) for builds
-     * Building for ARM easy (–-config=linux_arm_32v7)
+     * Building for ARM is now simple (–-config=linux_arm_32v7)
   * Various fixes for bugs (#89)
 
-
-## Current Limitations
-
-This version of PlaidML has some notable limitations which will be addressed soon in upcoming releases:
-
-  * Start-up times are long for training
-  * Training throughput much lower than we'd like
 
 ### Validated Hardware
 
@@ -50,8 +43,11 @@ Vertex.AI runs a comprehensive set of tests for each release against these hardw
     * RX 480
     * Vega 10
   * NVIDIA
-    * K80, GTX 780
+    * K80, GTX 780, GT 640M
     * GTX 1070, 1050
+  * Intel
+    * HD4000
+    * HD Graphics 505
 
 ### Validated Networks
 We support all of the Keras application networks from current versions of 2.x. Validated networks are tested for performance and 
@@ -63,6 +59,8 @@ correctness as part of our continuous integration system.
    * vgg19
    * xception
    * mobilenet
+   * densenet
+   * shufflenet
 
  * LSTM
    * examples/imdb_lstm.py (from keras)
