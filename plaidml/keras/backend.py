@@ -1703,6 +1703,10 @@ def update_sub(x, decrement):
     return (x, x - decrement)
 
 
+def uses_correlation():
+    return True
+
+
 def var(x, axis=None, keepdims=False):
     return op.variance(
         x, axes=axis, keepdims=keepdims, floatx=ptile.convert_np_dtype_to_pml(floatx()))
