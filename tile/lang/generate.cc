@@ -469,7 +469,8 @@ static std::set<size_t> ConnectedComponents(const Program& prog, const Bindings&
 
 static void DoUnification(FlatContraction* flat, std::set<std::size_t>* computed, VarRewrites* var_rewrites,
                           const Program& prog, std::size_t opidx, const UseDef& ud, const Bindings& vars,
-                          const ShapeMap& inputs, const ShapeMap& outputs, const std::vector<Polynomial>& out_poly) {
+                          const ShapeMap& inputs, const ShapeMap& outputs, const std::vector<Polynomial>& out_poly,
+                          const HardwareSettings& settings) {
   // Unify the contraction with downstream elementwise operations.
   //
   // Here's the idea: during a contraction's output phase, we
@@ -509,6 +510,9 @@ static void DoUnification(FlatContraction* flat, std::set<std::size_t>* computed
 
   // The set of elementwise operations that have been unified with the kernel.
   std::set<std::size_t> unified_opidxs = ConnectedComponents(prog, vars, opidx, *computed, ud);
+
+  // The map of outputs that are allowed to alias inputs.
+  std::map<std::string, std::set<std::string>> aliases;
 
   for (auto unified_opidx : unified_opidxs) {
     auto& unified_op = prog.ops[unified_opidx];
@@ -565,9 +569,12 @@ static void DoUnification(FlatContraction* flat, std::set<std::size_t>* computed
 
     IVLOG(4, "  Unifying op " << unified_op);
 
-    // Adjust inputs to account for local variable rewrites, and add
-    // them to the the post-contraction inputs if needed.
+    // Adjust inputs to account for local variable rewrites, and add them to the the post-contraction
+    // inputs if needed; for each input that's compatible with the output shape (all dimension sizes
+    // and striding identical, and identical element size), mark that the output is allowed to alias
+    // that input, recursively.
     Op copied_op = unified_op;
+    const auto* oshape = &vars.at(copied_op.output).shape;
     for (std::string& input : copied_op.inputs) {
       auto rit = local_var_rewrites.find(input);
       if (rit != local_var_rewrites.end()) {
@@ -580,6 +587,15 @@ static void DoUnification(FlatContraction* flat, std::set<std::size_t>* computed
         if (!post_contraction_set.count(input)) {
           post_contraction_set.insert(input);
           post_contraction_inputs.push_back(input);
+        }
+      }
+
+      const auto* ishape = &vars.at(input).shape;
+      if (!settings.disable_io_aliasing && ishape->dims == oshape->dims && byte_width(ishape->type) == byte_width(oshape->type)) {
+        aliases[copied_op.output].emplace(input);
+        auto it = aliases.find(input);
+        if (it != aliases.end()) {
+          aliases[copied_op.output].insert(it->second.begin(), it->second.end());
         }
       }
     }
@@ -621,6 +637,20 @@ static void DoUnification(FlatContraction* flat, std::set<std::size_t>* computed
   }
 
   flat->kernel_outputs.insert(flat->kernel_outputs.end(), kernel_outputs.begin(), kernel_outputs.end());
+  if (!settings.disable_io_aliasing) {
+    for (const std::string& output : flat->kernel_outputs) {
+      auto ait = aliases.find(output);
+      if (ait != aliases.end()) {
+        for (auto it = ait->second.begin(); it != ait->second.end();) {
+          auto eit = it++;
+          if (!post_contraction_set.count(*eit)) {
+            ait->second.erase(eit);
+          }
+        }
+        flat->safe_self_aliases.emplace(output, std::move(ait->second));
+      }
+    }
+  }
 
   // Copy over post contraction inputs and compute strides
   computed->insert(unified_opidxs.begin(), unified_opidxs.end());
@@ -729,7 +759,7 @@ static KernelList Compile(const Program& orig_prog, const ShapeMap& inputs, cons
         }
         flat.kernel_outputs.push_back(op.output);
       } else {
-        DoUnification(&flat, &computed, &r.var_rewrites, prog, i, ud, vars, inputs, outputs, out_poly);
+        DoUnification(&flat, &computed, &r.var_rewrites, prog, i, ud, vars, inputs, outputs, out_poly, settings);
       }
       ContractionWrap(r, &op.c, std::move(flat), kname, settings, vars, tile_trials, r.var_rewrites, optimizer,
                       &flat_cache);
@@ -832,7 +862,7 @@ static KernelList Compile(const Program& orig_prog, const ShapeMap& inputs, cons
       flat.access.emplace_back(std::move(access));
     }
 
-    DoUnification(&flat, &computed, &r.var_rewrites, prog, i, ud, vars, inputs, outputs, out_poly);
+    DoUnification(&flat, &computed, &r.var_rewrites, prog, i, ud, vars, inputs, outputs, out_poly, settings);
 
     ContractionWrap(r, nullptr, std::move(flat), next_kname(), settings, vars, tile_trials, r.var_rewrites, optimizer,
                     &flat_cache);

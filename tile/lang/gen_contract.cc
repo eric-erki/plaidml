@@ -161,6 +161,7 @@ KernelInfo GenContract(const string& kname, const DirectSettings& settings, cons
   }
   SVLOG(cs, 3, "lwork = " << ki.lwork[0] << ", " << ki.lwork[1] << ", " << ki.lwork[2]);
   SVLOG(cs, 3, "gwork = " << ki.gwork[0] << ", " << ki.gwork[1] << ", " << ki.gwork[2]);
+  ki.safe_self_aliases = op.safe_self_aliases;
 
   // Add comments together + and dump
   std::string comments = op.comments + cs.str();
