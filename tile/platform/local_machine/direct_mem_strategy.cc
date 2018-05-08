@@ -96,7 +96,7 @@ std::unique_ptr<View> DirectMemChunk::MapDiscard(const context::Context& ctx) {
 DirectMemStrategy::DirectMemStrategy(const std::shared_ptr<DevInfo>& devinfo, hal::Memory* source)
     : devinfo_{devinfo}, source_{source} {
   if (!source_) {
-    throw std::logic_error{"The direct memory management strategy requires host memory"};
+    throw std::logic_error{"The direct memory management strategy requires source memory"};
   }
 }
 

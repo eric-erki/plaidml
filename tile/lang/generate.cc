@@ -345,9 +345,9 @@ static bool CanUnifyOp(const Program& prog, const Bindings& vars, std::size_t ro
 }
 
 static void ConsiderConsumers(const Program& prog, const Bindings& vars, std::size_t root_opidx,
-                              const std::set<size_t>& previously_computed, const UseDef& ud,
-                              std::set<size_t>* unified, std::stack<std::string> *unified_frontier,
-                              std::set<std::string> *seen_vars, const std::string& var) {
+                              const std::set<size_t>& previously_computed, const UseDef& ud, std::set<size_t>* unified,
+                              std::stack<std::string>* unified_frontier, std::set<std::string>* seen_vars,
+                              const std::string& var) {
   // This function is used by ConnectedComponents to extend the connected components subgraph
   // from a particular variable, attempting to add downstream operations whose other inputs'
   // producers have either already been unified or that can be unified into the current
@@ -355,8 +355,7 @@ static void ConsiderConsumers(const Program& prog, const Bindings& vars, std::si
 
   // Loop over the variable's consumers.
   for (std::size_t c_start : ud.uses().at(var)) {
-    if (unified->count(c_start) || !CanUnifyOp(prog, vars, root_opidx, c_start) ||
-        previously_computed.count(c_start)) {
+    if (unified->count(c_start) || !CanUnifyOp(prog, vars, root_opidx, c_start) || previously_computed.count(c_start)) {
       continue;
     }
 
@@ -390,6 +389,13 @@ static void ConsiderConsumers(const Program& prog, const Bindings& vars, std::si
         candidate_frontier.push(i);
       }
     }
+
+#ifdef __APPLE__
+    // HACK: this is to avoid limitations in the number of arguments allowed to a kernel under Metal.
+    if (unified->size() + candidates.size() > 10) {
+      goto discard_candidate_set;
+    }
+#endif
 
     unified->insert(candidates.begin(), candidates.end());
     for (auto c : candidates) {

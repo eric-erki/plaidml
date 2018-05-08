@@ -3,7 +3,7 @@
 #include <gtest/gtest.h>
 
 #include "tile/base/platform_test.h"
-#include "tile/hal/cuda/hal.h"
+#include "tile/hal/metal/hal.h"
 #include "tile/platform/local_machine/platform.h"
 
 using ::testing::ValuesIn;
@@ -24,7 +24,7 @@ std::vector<std::function<std::unique_ptr<Platform>()>> MakeFactories() {
   return factories;
 }
 
-INSTANTIATE_TEST_CASE_P(CudaHal, PlatformTest, ValuesIn(MakeFactories()));
+INSTANTIATE_TEST_CASE_P(MetalHal, PlatformTest, ValuesIn(MakeFactories()));
 
 }  // namespace
 }  // namespace testing
