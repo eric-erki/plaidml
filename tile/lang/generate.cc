@@ -400,6 +400,9 @@ static void ConsiderConsumers(const Program& prog, const Bindings& vars, std::si
     unified->insert(candidates.begin(), candidates.end());
     for (auto c : candidates) {
       for (const auto& var : prog.ops[c].inputs) {
+        if (vars.at(var).tag != Binding::TENSOR) {
+            continue;
+        }
         if (seen_vars->emplace(var).second) {
           unified_frontier->push(var);
         }
@@ -459,6 +462,9 @@ static std::set<size_t> ConnectedComponents(const Program& prog, const Bindings&
   // This recursively adds all consumers of these vars and their respective inputs (iff those inputs can be unified)
   // to the unified set.
   for (const auto& var : prog.ops[root_opidx].inputs) {
+    if (vars.at(var).tag != Binding::TENSOR) {
+      continue;
+    }
     seen_vars.emplace(var);
     unified_frontier.push(var);
   }
